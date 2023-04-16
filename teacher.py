@@ -10,6 +10,7 @@ HYPERPARAMS = {
     "urban": {},
 }
 
+
 class SpectrogramDataModule(pl.LightningDataModule):
     def __init__(self, sav_dir, domain):
         super().__init__()

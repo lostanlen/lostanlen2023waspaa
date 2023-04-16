@@ -5,7 +5,6 @@ import datetime
 from datetime import timedelta
 import fire
 import h5py
-import json
 import numpy as np
 import os
 import pandas as pd
@@ -22,7 +21,8 @@ import teacher
 MAX_EPOCHS = 100
 SAMPLES_PER_EPOCH = 8000
 
-def fit(sav_dir, domain, arch, init_id, batch_size, job_id):
+
+def run(sav_dir, domain, arch, init_id, batch_size, job_id):
     # Print header
     start_time = int(time.time())
     print("Job ID: " + job_id)
@@ -47,7 +47,7 @@ def fit(sav_dir, domain, arch, init_id, batch_size, job_id):
     print(str(datetime.datetime.now()) + " Finished initializing dataset")
 
     print("Current device: ", torch.cuda.get_device_name(0))
-    torch.multiprocessing.set_start_method('spawn')
+    torch.multiprocessing.set_start_method("spawn")
 
     # Initialize model
     constructor = getattr(student, arch)
@@ -63,7 +63,9 @@ def fit(sav_dir, domain, arch, init_id, batch_size, job_id):
         filename="best",
         save_weights_only=False,
     )
-    tb_logger = pl_loggers.TensorBoardLogger(save_dir=os.path.join(model_sav_path,"logs"))
+    tb_logger = pl_loggers.TensorBoardLogger(
+        save_dir=os.path.join(model_sav_path, "logs")
+    )
 
     # Setup trainer
     steps_per_epoch = SAMPLES_PER_EPOCH / batch_size
@@ -78,12 +80,17 @@ def fit(sav_dir, domain, arch, init_id, batch_size, job_id):
         limit_test_batches=1.0,
         callbacks=[checkpoint_cb],
         logger=tb_logger,
-        max_time=timedelta(hours=12)
+        max_time=timedelta(hours=12),
     )
 
     # Train
+    trainer.fit(model, dataset)
 
     # Test
+    test_loss = trainer.test(model, dataset, verbose=False)
+    print("Model saved at: {}".format(model_sav_path))
+    print("Average test loss: {}".format(test_loss))
+    print("\n")
 
     # Print elapsed time.
     print(str(datetime.datetime.now()) + " Success.")
@@ -96,6 +103,7 @@ def fit(sav_dir, domain, arch, init_id, batch_size, job_id):
     )
     print("Total elapsed time: " + elapsed_str + ".")
 
+
 # Launch computation
 if __name__ == "__main__":
-    fire.Fire(fit)
+    fire.Fire(run)
