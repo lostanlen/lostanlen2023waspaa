@@ -2,11 +2,16 @@
 This script fits a neural network to the output of an auditory filterbank.
 """
 import datetime
+from datetime import timedelta
+import fire
 import h5py
+import json
 import numpy as np
 import os
 import pandas as pd
 import pytorch_lightning as pl
+from pytorch_lightning import loggers as pl_loggers
+from pytorch_lightning.callbacks import ModelCheckpoint
 import sys
 import time
 import torch
@@ -14,64 +19,83 @@ import torch
 import student
 import teacher
 
-# Collect command-line arguments
-sav_dir = sys.argv[1]
-domain = sys.argv[2]
-arch = sys.argv[3]
-init_id = sys.argv[4]
+MAX_EPOCHS = 100
+SAMPLES_PER_EPOCH = 8000
 
-# Print header
-start_time = int(time.time())
-print(str(datetime.datetime.now()) + " Start.")
-print(__doc__ + "\n")
-print("Command-line arguments:\n" + "\n".join(sys.argv[1:]) + "\n")
+def fit(sav_dir, domain, arch, init_id, batch_size, job_id):
+    # Print header
+    start_time = int(time.time())
+    print("Job ID: " + job_id)
+    print(str(datetime.datetime.now()) + " Start.")
+    print(__doc__ + "\n")
+    print("\n".join([sav_dir, domain, arch, str(init_id)]) + "\n")
 
-# Print version numbers
-for module in [h5py, np, pd, pl, torch]:
-    print("{} version: {:s}".format(module.__name__, module.__version__))
-print("")
-sys.stdout.flush()
+    # Print version numbers
+    for module in [h5py, np, pd, pl, torch]:
+        print("{} version: {:s}".format(module.__name__, module.__version__))
+    print("")
+    sys.stdout.flush()
 
-# Create model directory
-model_dir = os.path.join(sav_dir, "models", domain)
-model_sav_name = "_".join([domain, arch, "init-" + str(init_id)])
-model_sav_path = os.path.join(model_dir, model_sav_name)
-os.makedirs(model_sav_path, exist_ok=True)
-pred_path = os.path.join(model_sav_path, "predictions.npy")
+    # Create model directory
+    model_dir = os.path.join(sav_dir, "models", domain)
+    model_sav_path = os.path.join(model_dir, job_id)
+    os.makedirs(model_sav_path, exist_ok=True)
+    pred_path = os.path.join(model_sav_path, "predictions.npy")
 
-# Initialize dataset
-dataset = teacher.SpectrogramDataModule(sav_dir=sav_dir, domain=domain)
-print(str(datetime.datetime.now()) + " Finished initializing dataset")
+    # Initialize dataset
+    dataset = teacher.SpectrogramDataModule(sav_dir=sav_dir, domain=domain)
+    print(str(datetime.datetime.now()) + " Finished initializing dataset")
 
-# Launch computation
-if __name__ == "__main__":
     print("Current device: ", torch.cuda.get_device_name(0))
     torch.multiprocessing.set_start_method('spawn')
 
     # Initialize model
-    if arch == "convnet":
-        model = student.init_convnet(domain=domain)
-    elif arch == "LEAF":
-        model = student.init_leaf(domain=domain)
-    elif arch == "MuReNN":
-        model = student.init_murenn(domain=domain)
+    constructor = getattr(student, arch)
+    spec = teacher.HYPERPARAMS[domain]
+    model = constructor(spec)
     print(str(datetime.datetime.now()) + " Finished initializing model")
 
     # Setup checkpoints and Tensorboard logger
+    checkpoint_cb = ModelCheckpoint(
+        dirpath=model_sav_path,
+        monitor="val_loss",
+        save_last=True,
+        filename="best",
+        save_weights_only=False,
+    )
+    tb_logger = pl_loggers.TensorBoardLogger(save_dir=os.path.join(model_sav_path,"logs"))
 
     # Setup trainer
+    steps_per_epoch = SAMPLES_PER_EPOCH / batch_size
+    max_steps = steps_per_epoch * MAX_EPOCHS
+    trainer = pl.Trainer(
+        accelerator="gpu",
+        devices=-1,
+        max_epochs=MAX_EPOCHS,
+        max_steps=max_steps,
+        limit_train_batches=steps_per_epoch,
+        limit_val_batches=1.0,
+        limit_test_batches=1.0,
+        callbacks=[checkpoint_cb],
+        logger=tb_logger,
+        max_time=timedelta(hours=12)
+    )
 
     # Train
 
     # Test
 
-# Print elapsed time.
-print(str(datetime.datetime.now()) + " Success.")
-elapsed_time = time.time() - int(start_time)
-elapsed_hours = int(elapsed_time / (60 * 60))
-elapsed_minutes = int((elapsed_time % (60 * 60)) / 60)
-elapsed_seconds = elapsed_time % 60.0
-elapsed_str = "{:>02}:{:>02}:{:>05.2f}".format(
-    elapsed_hours, elapsed_minutes, elapsed_seconds
-)
-print("Total elapsed time: " + elapsed_str + ".")
+    # Print elapsed time.
+    print(str(datetime.datetime.now()) + " Success.")
+    elapsed_time = time.time() - int(start_time)
+    elapsed_hours = int(elapsed_time / (60 * 60))
+    elapsed_minutes = int((elapsed_time % (60 * 60)) / 60)
+    elapsed_seconds = elapsed_time % 60.0
+    elapsed_str = "{:>02}:{:>02}:{:>05.2f}".format(
+        elapsed_hours, elapsed_minutes, elapsed_seconds
+    )
+    print("Total elapsed time: " + elapsed_str + ".")
+
+# Launch computation
+if __name__ == "__main__":
+    fire.Fire(fit)

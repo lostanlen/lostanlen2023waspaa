@@ -1,5 +1,15 @@
 import pytorch_lightning as pl
 
+HYPERPARAMS = {
+    "speech": {
+        "n_filters": 40,
+        "win_length": 1024,
+        "stride": 256,
+    },
+    "music": {},
+    "urban": {},
+}
+
 class SpectrogramDataModule(pl.LightningDataModule):
     def __init__(self, sav_dir, domain):
         super().__init__()
