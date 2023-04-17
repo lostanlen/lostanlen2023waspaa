@@ -3,7 +3,7 @@ import torch
 import torchaudio
 import torch.nn as nn
 from speechbrain.nnet.CNN import GaborConv1d
-
+import torch.nn.utils.parametrize as P
 
 class TDFilterbank(torch.nn.Module):
     def __init__(self, spec):
@@ -87,7 +87,11 @@ class MuReNN(torch.nn.Module):
         # Flip j axis so that frequencies range from low to high
         Ux = torch.flip(Ux, dims=(-2,))
         return Ux
-        
+
+class Exp(nn.Module):
+    def forward(self, X):
+        return torch.exp(X)
+
 class Leaf(torch.nn.Module):
     def __init__(self, spec, learn_amplitudes=False):
         super().__init__()
@@ -117,7 +121,8 @@ class Leaf(torch.nn.Module):
             groups=spec['filters'],
             bias=False
         )
-
+        # Ensure positiveness of learned parameters
+        P.register_parametrization(self.learnable_scaling, "weight", Exp()) 
 
     def forward(self, x): 
         x = x.reshape(x.shape[0], 1, x.shape[-1])
