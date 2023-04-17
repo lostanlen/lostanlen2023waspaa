@@ -5,6 +5,9 @@ HYPERPARAMS = {
         "n_filters": 40,
         "win_length": 1024,
         "stride": 256,
+        "sr": 44100, ##TODO: add sr
+        "fmin": 50, 
+        "fmax": 22050,
     },
     "music": {},
     "urban": {},
