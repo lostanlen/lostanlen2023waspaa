@@ -88,10 +88,10 @@ class MuReNN(torch.nn.Module):
         Ux = torch.flip(Ux, dims=(-2,))
         return Ux
         
-class LeafFilterbank(torch.nn.Module):
-    def __init__(self, spec, is_scale=False):
+class Leaf(torch.nn.Module):
+    def __init__(self, spec, learn_amplitudes=False):
         super().__init__()
-        self.is_scale = is_scale
+        self.learn_amplitudes = learn_amplitudes
         self.gaborfilter = GaborConv1d(
             out_channels=spec['filters'],
             kernel_size=spec['win_length'],
@@ -122,6 +122,6 @@ class LeafFilterbank(torch.nn.Module):
     def forward(self, x): 
         x = x.reshape(x.shape[0], 1, x.shape[-1])
         Ux = self.gaborfilter(x)
-        if self.is_scale:
+        if self.learn_amplitudes:
             Ux = self.learnable_scaling(Ux)
         return torch.real(Ux) ** 2 + torch.imag(Ux) ** 2
