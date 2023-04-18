@@ -47,10 +47,13 @@ def run(sav_dir, domain, arch, init_id, batch_size, job_id):
     print(str(datetime.datetime.now()) + " Finished initializing dataset")
 
     if torch.cuda.is_available():
-        print("Current device: ", torch.cuda.get_device_name(0))
+        accelerator = "gpu"
+        devices = -1
         torch.multiprocessing.set_start_method("spawn")
     else:
-        print("Current device: ", torch.device("cpu"))
+        accelerator = "cpu"
+        devices = "auto"
+    print("Current device: ", accelerator)
 
     # Initialize model
     constructor = getattr(student, arch)
@@ -74,8 +77,8 @@ def run(sav_dir, domain, arch, init_id, batch_size, job_id):
     steps_per_epoch = SAMPLES_PER_EPOCH / batch_size
     max_steps = steps_per_epoch * MAX_EPOCHS
     trainer = pl.Trainer(
-        accelerator="gpu",
-        devices=-1,
+        accelerator=accelerator,
+        devices=devices,
         max_epochs=MAX_EPOCHS,
         max_steps=max_steps,
         limit_train_batches=steps_per_epoch,
