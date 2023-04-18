@@ -46,8 +46,11 @@ def run(sav_dir, domain, arch, init_id, batch_size, job_id):
     dataset = teacher.SpectrogramDataModule(sav_dir=sav_dir, domain=domain)
     print(str(datetime.datetime.now()) + " Finished initializing dataset")
 
-    print("Current device: ", torch.cuda.get_device_name(0))
-    torch.multiprocessing.set_start_method("spawn")
+    if torch.cuda.is_available():
+        print("Current device: ", torch.cuda.get_device_name(0))
+        torch.multiprocessing.set_start_method("spawn")
+    else:
+        print("Current device: ", torch.device("cpu"))
 
     # Initialize model
     constructor = getattr(student, arch)
