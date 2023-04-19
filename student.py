@@ -1,4 +1,6 @@
+from collections import Counter
 from murenn import DTCWTForward
+import numpy as np
 import torch
 import torchaudio
 import torch.nn as nn
@@ -39,7 +41,7 @@ class MuReNN(torch.nn.Module):
         
         mel_scale = "htk"
         m_min = torchaudio.functional.functional._hz_to_mel(
-            spech["fmin"], mel_scale=mel_scale)
+            spec["fmin"], mel_scale=mel_scale)
         m_max = torchaudio.functional.functional._hz_to_mel(
             spec["fmax"], mel_scale=mel_scale)
         m_pts = torch.linspace(m_min, m_max, spec["n_mels"] + 2)
@@ -47,7 +49,7 @@ class MuReNN(torch.nn.Module):
             m_pts, mel_scale=mel_scale)
         center_freqs = f_pts[1:-1]
 
-        nyquist = teacher["sr"] / 2
+        nyquist = spec["sr"] / 2
         octaves = np.round(np.log2(
             nyquist / center_freqs.numpy())).astype("int")
         Q_ctr = Counter(octaves)
