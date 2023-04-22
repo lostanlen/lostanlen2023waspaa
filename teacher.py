@@ -6,6 +6,9 @@ import h5py
 import numpy as np
 import torch
 import os
+import soundfile as sf
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 HYPERPARAMS = {
     "speech": { #mel
@@ -20,7 +23,9 @@ HYPERPARAMS = {
     "music": { #vqt
         "n_filters": 96,
         "nfft": 88200,
-        "win_length": None, #TODO: add sr
+        "win_length": 1024, 
+        "stride": 256,
+        "sr": 44100,
         "fmin": 100,
         "fmax": 22050,
     }, 
@@ -129,27 +134,41 @@ class CQTSineDataModule(pl.LightningDataModule):
 class SpectrogramDataModule(pl.LightningDataModule):
     def __init__(self, sav_dir, domain, batch_size):
         super().__init__()
-        self.audio_dir = os.path.join(sav_dir, domain + ".h5")
+        self.audio_dir = sav_dir
         self.batch_size = batch_size
+        self.ids, self.file_names = self.get_ids()
         if domain == "speech":
             self.feature = "mel"
         elif domain == "music":
-            self.feature = "cqt"
+            self.feature = "vqt"
         elif domain == "urban":
             self.feature = "third_oct_response"
-        self.seg_length = HYPERPARAMS[self.feature]["nfft"]
-        self.stride = HYPERPARAMS[self.feature]["stride"]
+        self.seg_length = HYPERPARAMS[domain]["nfft"]
+        self.stride = HYPERPARAMS[domain]["stride"]
         self.num_workers = 0
     
     def setup(self, stage=None):
-        self.train_dataset = SpectrogramData(self.audio_dir, self.feature, self.seg_length, self.stride)
-        self.val_dataset = SpectrogramData(self.audio_dir, self.feature, self.seg_length, self.stride)
-        
+        N = len(self.ids)
+        train_ids = self.ids[:-N//5]
+        test_ids = self.ids[-N // 5: -N // 10]
+        val_ids = self.ids[-N//10::]
+        self.train_dataset = SpectrogramData(train_ids, self.audio_dir, self.file_names, self.feature, self.seg_length, self.stride)
+        self.val_dataset = SpectrogramData(test_ids, self.audio_dir, self.file_names, self.feature, self.seg_length, self.stride)
+        self.test_dataset = SpectrogramData(val_ids, self.audio_dir, self.file_names, self.feature, self.seg_length, self.stride)
+    
+    def get_ids(self):
+        files = []
+        for root, dirs, fs in os.walk(self.audio_dir):
+            for f in fs:
+                if f[-3:] == "wav":
+                    files.append(os.path.join(root, f))
+        length = len(files)
+        return list(i for i in np.arange(1, length + 1)), files
 
     def collate_batch(self, batch):
         feat = torch.stack([s['feature'] for s in batch], axis=0)
-        x = torch.stack([s['x']for s in batch], axis = 0).permute(0,2,1) #batch, time, channel
-        #print("batched feature shape", feat.shape, x.shape)
+        x = torch.stack([s['x']for s in batch]) #batch, time, channel
+        #print("batched feature shape", feat.shape, x.shape, feat.dtype)
         return {'feature': feat, 'x': x}
 
 
@@ -168,10 +187,19 @@ class SpectrogramDataModule(pl.LightningDataModule):
                           drop_last=True,
                           collate_fn=self.collate_batch,
                           num_workers=self.num_workers)
+    def test_dataloader(self):
+        return DataLoader(self.test_dataset,
+                          batch_size=self.batch_size,
+                          shuffle=False,
+                          drop_last=True,
+                          collate_fn=self.collate_batch,
+                          num_workers=self.num_workers)
 
 class SpectrogramData(Dataset):
     def __init__(self,
+                 ids,
                  audio_dir,
+                 file_names, 
                  feature,
                  seg_length,
                  stride,
@@ -179,12 +207,13 @@ class SpectrogramData(Dataset):
         super().__init__()
         self.feature = feature
         self.audio_dir = audio_dir #path to hdf5 file
-        self.ids = self.get_ids()
+        self.file_names = file_names
         self.seg_length = seg_length
         self.stride = stride
+        self.ids = ids
         #load filter coefficients:
         coef_path = os.path.join(audio_dir, self.feature + "_freqz.npy") #store coefficeints in "mel_freqz.npy"
-        self.coefficients = np.load(coef_path)
+        self.coefficients = torch.tensor(np.load(coef_path))#.to(device)
 
     def __getitem__(self, idx): 
         id = self.ids[idx]
@@ -193,18 +222,12 @@ class SpectrogramData(Dataset):
 
     def __len__(self):
         return len(self.ids)
-    
-    def get_ids(self):
-        with h5py.File(self.audio_dir, "r") as f:
-            length = len(f['x'].keys())
-        return list(str(i) for i in np.arange(1, length + 1))
 
     def feat_from_id(self, id):
-        with h5py.File(self.audio_dir, "r") as f:
-            x = np.array(f['x'][str(id)])
+        x, sr = sf.read(self.file_names[int(id)])
         #sample a random segment 
-        start = np.random(x.shape[0] - self.seg_length)
-        x = torch.tensor(x[start: start+self.seg_length], dtype=torch.float32).cuda()
+        start = np.random.randint(x.shape[0] - self.seg_length - 1)
+        x = torch.tensor(x[start: start+self.seg_length], dtype=torch.float32)#.to(device)
         feat = filtering(x, self.coefficients, self.stride)
         return x, feat
     
@@ -223,4 +246,4 @@ def filtering(x, freqz, stride):
     y = torch.fft.ifft(x_fft[:,None] * freqz, dim=0) #(nfft, n_filters)
     #subsample in fourier domain equivalent to strided convolution
     y = y[torch.arange(0, N, stride), :] #(frequency, n_filters)
-    return y.T #(n_filters, frequency)
+    return torch.tensor(torch.imag(y) ** 2 + torch.real(y) ** 2, dtype=torch.float) #(frequency, n_filters)

@@ -102,7 +102,7 @@ class Leaf(pl.LightningModule):
         self.learn_amplitudes = learn_amplitudes
         self.gaborfilter = GaborConv1d(
             out_channels=spec['n_filters'],
-            kernel_size=spec['win_length'],
+            kernel_size=spec['win_length'], #filter length: should be the provided freqz length divided by stride size?
             stride = spec['stride'],
             input_shape=None,
             in_channels=spec['n_filters'],
@@ -111,11 +111,11 @@ class Leaf(pl.LightningModule):
             sample_rate=spec['sr'],
             min_freq=spec['fmin'],
             max_freq=spec['fmax'],
-            n_fft=spec['win_length'],
+            n_fft=spec['win_length'], #construct mel filters and determine initialization of gabor filters
             normalize_energy=False,
             bias=False,
             sort_filters=True, #ascending order 
-            use_legacy_complex=False,
+            use_legacy_complex=True,
             skip_transpose=False, #false means enable batch processing
         )
         self.learnable_scaling = nn.Conv1d(
@@ -130,11 +130,11 @@ class Leaf(pl.LightningModule):
 
     def forward(self, x):
         #x = x.reshape(x.shape[0], 1, x.shape[1]) #batch time channel
-        Ux = self.gaborfilter(x)
-        #print(Ux.shape)
+        Ux = self.gaborfilter(x) # always real??
+        #print("gabor what shape", Ux.shape, Ux.dtype, torch.sum(Ux<0))
         if self.learn_amplitudes:
             Ux = self.learnable_scaling(Ux)
-        return torch.real(Ux) ** 2 + torch.imag(Ux) ** 2
+        return Ux
 
     def step(self, batch, fold):
         feat = batch['feature']#.to(self.device)

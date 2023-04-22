@@ -73,7 +73,7 @@ def run(sav_dir, domain, arch, init_id, batch_size, job_id):
     )
 
     # Setup trainer
-    steps_per_epoch = SAMPLES_PER_EPOCH / batch_size
+    steps_per_epoch = SAMPLES_PER_EPOCH // batch_size
     max_steps = steps_per_epoch * MAX_EPOCHS
     trainer = pl.Trainer(
         accelerator=accelerator,
@@ -111,7 +111,7 @@ def run(sav_dir, domain, arch, init_id, batch_size, job_id):
 
 # Launch computation
 if __name__ == "__main__":
-    save_dir = "/home/han/localdata/data/waspaa_data"
-    domain = "speech"
-    arch, init_id, batch_size, job_id = "Leaf", 0, 2, 1
+    #save_dir = "/home/han/localdata/data/waspaa_data/SOL"
+    #domain = "speech"
+    #arch, init_id, batch_size, job_id = "Leaf", 0, 2, 1
     fire.Fire(run)
