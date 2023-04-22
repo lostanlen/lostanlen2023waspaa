@@ -1,13 +1,15 @@
 from collections import Counter
-from murenn import DTCWTForward
+#from murenn import DTCWTForward
 import numpy as np
 import torch
 import torchaudio
 import torch.nn as nn
 from speechbrain.nnet.CNN import GaborConv1d
+import pytorch_lightning as pl
 import torch.nn.utils.parametrize as P
+import torch.nn.functional as F
 
-class TDFilterbank(torch.nn.Module):
+class TDFilterbank(pl.LightningModule):
     def __init__(self, spec):
         super().__init__()
 
@@ -35,7 +37,7 @@ class TDFilterbank(torch.nn.Module):
         return Ux
 
 
-class MuReNN(torch.nn.Module):
+class MuReNN(pl.LightningModule):
     def __init__(self, spec, Q_multiplier=16):
         super().__init__()
         
@@ -94,16 +96,16 @@ class Exp(nn.Module):
     def forward(self, X):
         return torch.exp(X)
 
-class Leaf(torch.nn.Module):
+class Leaf(pl.LightningModule):
     def __init__(self, spec, learn_amplitudes=False):
         super().__init__()
         self.learn_amplitudes = learn_amplitudes
         self.gaborfilter = GaborConv1d(
-            out_channels=spec['filters'],
+            out_channels=spec['n_filters'],
             kernel_size=spec['win_length'],
             stride = spec['stride'],
             input_shape=None,
-            in_channels=spec['filters'],
+            in_channels=spec['n_filters'],
             padding='same',
             padding_mode='constant',
             sample_rate=spec['sr'],
@@ -117,18 +119,49 @@ class Leaf(torch.nn.Module):
             skip_transpose=False, #false means enable batch processing
         )
         self.learnable_scaling = nn.Conv1d(
-            in_channels=spec['filters'],
-            out_channels=spec['filters'],
+            in_channels=spec['n_filters'],
+            out_channels=spec['n_filters'],
             kernel_size=1,
-            groups=spec['filters'],
+            groups=spec['n_filters'],
             bias=False
         )
         # Ensure positiveness of learned parameters
-        P.register_parametrization(self.learnable_scaling, "weight", Exp()) 
+        #P.register_parametrization(self.learnable_scaling, "weight", Exp()) 
 
-    def forward(self, x): 
-        x = x.reshape(x.shape[0], 1, x.shape[-1])
+    def forward(self, x):
+        #x = x.reshape(x.shape[0], 1, x.shape[1]) #batch time channel
         Ux = self.gaborfilter(x)
+        #print(Ux.shape)
         if self.learn_amplitudes:
             Ux = self.learnable_scaling(Ux)
         return torch.real(Ux) ** 2 + torch.imag(Ux) ** 2
+
+    def step(self, batch, fold):
+        feat = batch['feature']#.to(self.device)
+        x = batch['x']#.to(self.device).double()
+        outputs = self(x)
+        loss = F.mse_loss(outputs, feat)
+        return {'loss': loss}
+    
+    def training_step(self, batch):
+        return self.step(batch, "train")
+    
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, "val")
+
+    def test_step(self, batch, batch_idx):
+        return self.step(batch, "test")
+
+    def training_epoch_end(self, outputs):
+        loss = torch.stack([x['loss'] for x in outputs]).mean()
+        self.log('train_loss', loss, prog_bar=False)
+    
+    def test_epoch_end(self, outputs):
+        pass
+
+    def validation_epoch_end(self, outputs):
+        pass
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr=1e-3)
+       

@@ -21,11 +21,10 @@ import teacher
 MAX_EPOCHS = 100
 SAMPLES_PER_EPOCH = 8000
 
-
 def run(sav_dir, domain, arch, init_id, batch_size, job_id):
     # Print header
     start_time = int(time.time())
-    print("Job ID: " + job_id)
+    print("Job ID: " + str(job_id))
     print(str(datetime.datetime.now()) + " Start.")
     print(__doc__ + "\n")
     print("\n".join([sav_dir, domain, arch, str(init_id)]) + "\n")
@@ -38,12 +37,12 @@ def run(sav_dir, domain, arch, init_id, batch_size, job_id):
 
     # Create model directory
     model_dir = os.path.join(sav_dir, "models", domain)
-    model_sav_path = os.path.join(model_dir, job_id)
+    model_sav_path = os.path.join(model_dir, str(job_id))
     os.makedirs(model_sav_path, exist_ok=True)
     pred_path = os.path.join(model_sav_path, "predictions.npy")
 
     # Initialize dataset
-    dataset = teacher.SpectrogramDataModule(sav_dir=sav_dir, domain=domain)
+    dataset = teacher.SpectrogramDataModule(sav_dir=sav_dir, domain=domain, batch_size=batch_size)
     print(str(datetime.datetime.now()) + " Finished initializing dataset")
 
     if torch.cuda.is_available():
@@ -112,4 +111,7 @@ def run(sav_dir, domain, arch, init_id, batch_size, job_id):
 
 # Launch computation
 if __name__ == "__main__":
+    save_dir = "/home/han/localdata/data/waspaa_data"
+    domain = "speech"
+    arch, init_id, batch_size, job_id = "Leaf", 0, 2, 1
     fire.Fire(run)
