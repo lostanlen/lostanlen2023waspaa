@@ -7,6 +7,7 @@ import numpy as np
 import torch
 import os
 import soundfile as sf
+import torch.nn.functional as F
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -232,18 +233,80 @@ class SpectrogramData(Dataset):
         return x, feat
     
 
-def filtering(x, freqz, stride):
+# Teacher filtering routines: currently the 
+
+def filtering_frequency(x, freqz, stride):
     """
-    x: (time, )
-    freqz: (nfft, n_filters)
+    x: (sig_length, )
+    freqz: (sig_length, n_filters)
+
+    output: filterbank magnitude responses for x (n_filters, sig_length_subsampled)
     """
-    #take filter coefficients and convolve with x
-    #take fft of x
+    
+    freqz = torch.from_numpy(freqz)
     N = x.shape[0]
+
+    # x to Fourier domain
     x_fft = torch.fft.fft(x) #(nfft)
     assert freqz.shape[0] == x_fft.shape[0]
-    #complex pointwise multiplication with freqz
-    y = torch.fft.ifft(x_fft[:,None] * freqz, dim=0) #(nfft, n_filters)
-    #subsample in fourier domain equivalent to strided convolution
-    y = y[torch.arange(0, N, stride), :] #(frequency, n_filters)
-    return torch.tensor(torch.imag(y) ** 2 + torch.real(y) ** 2, dtype=torch.float) #(frequency, n_filters)
+
+    # complex pointwise multiplication with freqz and ifft with renormalization
+    y = torch.fft.ifft(x_fft * freqz, dim=0)*freqz.shape[0] #(nfft, n_filters)
+
+    # strided convolution = subsampling the full convolution
+    y = y[torch.arange(0, N - np.mod(N,stride), stride), :].T #(n_filters, nfft_subsampled)
+
+    # magnitude
+    mag = torch.tensor(torch.imag(y) ** 2 + torch.real(y) ** 2, dtype=torch.float) #(frequency, n_filters)
+    return mag
+
+
+def get_fr(freqz, centering = True, to_torch = True):
+    """
+    Get the impulse reponses as tensors
+
+    freqz: (sig_length, n_filters)
+
+    output: centered impulse reponses (n_filters, sig_length)
+    """
+
+    # to time-domain --> impulse reponse
+    imp = np.fft.ifft(freqz,axis=0)*np.sqrt(freqz.shape[0])
+    imp_r = np.real(imp)
+    imp_i = np.imag(imp)
+
+    # center the impulse responses within the vector instead of at the origin/end
+    if centering:
+        imp_r = np.roll(imp_r,len(imp_r)//2,axis = 0).T
+        imp_i = np.roll(imp_i,len(imp_i)//2,axis = 0).T
+    if to_torch:
+        imp_r = torch.from_numpy(imp_r)
+        imp_i = torch.from_numpy(imp_i)
+    return imp_r, imp_i
+
+
+def filtering_time(x, freqz, stride):
+    """
+    Do the filtering with conv1D.
+
+    x: (sig_length, )
+    freqz: (sig_length, n_filters)
+
+    output: filterbank magnitude responses for x (n_filters, sig_length_subsampled)
+    """
+
+    # some shaping to fit for conv1D
+    x = x.T
+    x = x.unsqueeze(0)
+    imp_r, imp_i = get_fr(freqz)
+    imp_rt = imp_r.unsqueeze(1).float()
+    imp_it = imp_i.unsqueeze(1).float()
+
+    # with padding=freqz.shape[0]//2 we start with the center of the filter at the first signal entry 
+    # in this way we are close to the circulant setting, but done with conv1D
+    out_r = F.conv1d(x, imp_rt, bias=None, stride=stride, padding=freqz.shape[0]//2)
+    out_i = F.conv1d(x, imp_it, bias=None, stride=stride, padding=freqz.shape[0]//2)
+
+    # magnitude
+    mag = out_r[0,:,:] ** 2 + out_i[0,:,:] ** 2
+    return mag
