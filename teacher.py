@@ -8,32 +8,47 @@ import torch
 import os
 import soundfile as sf
 import torch.nn.functional as F
+import pickle
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 HYPERPARAMS = {
-    "speech": { #mel
+    "speech_mel": { #mel
         "n_filters": 42,
         "nfft": 32000,
-        "win_length": 1024,
+        "win_length": None,
         "stride": 256,
+        "a_opt": 2,
         "sr": 16000, 
         "fmin": 65, 
-        "fmax": 7696.2,
+        "fmax": 8000,
+    },
+    "speech_gam": { #gam
+        "n_filters": 67,
+        "nfft": 32000,
+        "win_length": None,
+        "stride": 256,
+        "a_opt": 8,
+        "sr": 16000, 
+        "fmin": 12.5, 
+        "fmax": 8000,
     },
     "music": { #vqt
         "n_filters": 96,
         "nfft": 88200,
-        "win_length": 1024, 
+        "win_length": None, 
         "stride": 256,
+        "a_opt": 16,
         "sr": 44100,
         "fmin": 100,
         "fmax": 22050,
     }, 
-    "urban": {  #third octave
+    "urban": {  #third
         "n_filters": 32,
         "nfft": 88200,
-        "win_length": None, #different for each filter
+        "win_length": None,
+        "stride": 256,
+        "a_opt": 8,
         "sr": 44100,
         "fmin": 25,
         "fmax": 20000,
@@ -50,6 +65,20 @@ HYPERPARAMS = {
     },
 }
 
+# load everything about the teachers as dictionaries, containing:
+#   "freqz" frequency responses as 2D array (time,channels)
+#   "centerfreq" 
+#   "bandwidths"
+#   "framebounds" computed without subsampling
+
+with open('Freqz/MEL.pkl', 'rb') as fp:
+    MEL = pickle.load(fp)
+with open('Freqz/GAM.pkl', 'rb') as fp:
+    GAM = pickle.load(fp)
+with open('Freqz/VQT.pkl', 'rb') as fp:
+    VQT = pickle.load(fp)
+with open('Freqz/THIRD.pkl', 'rb') as fp:
+    THIRD = pickle.load(fp)
 
 
 
@@ -233,7 +262,7 @@ class SpectrogramData(Dataset):
         return x, feat
     
 
-# Teacher filtering routines: currently the 
+# Teacher filtering routines:
 
 def filtering_frequency(x, freqz, stride):
     """
