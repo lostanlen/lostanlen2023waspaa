@@ -18,6 +18,7 @@ class TDFilterbank(pl.LightningModule):
             out_channels=spec["n_filters"],
             kernel_size=spec["win_length"],
             stride=spec["stride"],
+            padding=spec["win_length"]//2,
             bias=False,
         )
 
@@ -26,6 +27,7 @@ class TDFilterbank(pl.LightningModule):
             out_channels=spec["n_filters"],
             kernel_size=spec["win_length"],
             stride=spec["stride"],
+            padding=spec["win_length"]//2,
             bias=False,
         )
 
