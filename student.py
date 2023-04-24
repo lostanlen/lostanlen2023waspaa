@@ -1,5 +1,5 @@
 from collections import Counter
-#from murenn import DTCWTForward
+from murenn import DTCWTForward
 import numpy as np
 import torch
 import torchaudio
@@ -18,6 +18,7 @@ class TDFilterbank(pl.LightningModule):
             out_channels=spec["n_filters"],
             kernel_size=spec["win_length"],
             stride=spec["stride"],
+            padding=spec["win_length"]//2,
             bias=False,
         )
 
@@ -26,6 +27,7 @@ class TDFilterbank(pl.LightningModule):
             out_channels=spec["n_filters"],
             kernel_size=spec["win_length"],
             stride=spec["stride"],
+            padding=spec["win_length"]//2,
             bias=False,
         )
 
@@ -36,6 +38,35 @@ class TDFilterbank(pl.LightningModule):
         Ux = Wx_real * Wx_real + Wx_imag * Wx_imag
         return Ux
 
+    def step(self, batch, fold):
+        feat = batch['feature']#.to(self.device)
+        x = batch['x']#.to(self.device).double()
+        outputs = self(x)
+        loss = F.mse_loss(outputs, feat)
+        return {'loss': loss}
+    
+    def training_step(self, batch):
+        return self.step(batch, "train")
+    
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, "val")
+
+    def test_step(self, batch, batch_idx):
+        return self.step(batch, "test")
+
+    def training_epoch_end(self, outputs):
+        loss = torch.stack([x['loss'] for x in outputs]).mean()
+        self.log('train_loss', loss, prog_bar=False)
+    
+    def test_epoch_end(self, outputs):
+        pass
+
+    def validation_epoch_end(self, outputs):
+        pass
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr=1e-3)
+       
 
 class MuReNN(pl.LightningModule):
     def __init__(self, spec, Q_multiplier=16):
@@ -91,7 +122,36 @@ class MuReNN(pl.LightningModule):
         # Flip j axis so that frequencies range from low to high
         Ux = torch.flip(Ux, dims=(-2,))
         return Ux
+    
+    def step(self, batch, fold):
+        feat = batch['feature']#.to(self.device)
+        x = batch['x']#.to(self.device).double()
+        outputs = self(x)
+        loss = F.mse_loss(outputs, feat)
+        return {'loss': loss}
+    
+    def training_step(self, batch):
+        return self.step(batch, "train")
+    
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, "val")
 
+    def test_step(self, batch, batch_idx):
+        return self.step(batch, "test")
+
+    def training_epoch_end(self, outputs):
+        loss = torch.stack([x['loss'] for x in outputs]).mean()
+        self.log('train_loss', loss, prog_bar=False)
+    
+    def test_epoch_end(self, outputs):
+        pass
+
+    def validation_epoch_end(self, outputs):
+        pass
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr=1e-3)
+       
 class Exp(nn.Module):
     def forward(self, X):
         return torch.exp(X)
@@ -101,7 +161,7 @@ class Leaf(pl.LightningModule):
         super().__init__()
         self.learn_amplitudes = learn_amplitudes
         self.gaborfilter = GaborConv1d(
-            out_channels=spec['n_filters'],
+            out_channels=2*spec['n_filters'],
             kernel_size=spec['win_length'], #filter length: should be the provided freqz length divided by stride size?
             stride = spec['stride'],
             input_shape=None,
@@ -130,11 +190,16 @@ class Leaf(pl.LightningModule):
 
     def forward(self, x):
         #x = x.reshape(x.shape[0], 1, x.shape[1]) #batch time channel
-        Ux = self.gaborfilter(x) # always real??
+        Ux = self.gaborfilter(x) #(batch, time, filters)
         #print("gabor what shape", Ux.shape, Ux.dtype, torch.sum(Ux<0))
-        if self.learn_amplitudes:
-            Ux = self.learnable_scaling(Ux)
-        return Ux
+        if self.learn_amplitudes: 
+            #apply learnable scaling to corresponding real and imaginary channels
+            Ux[:,:,:Ux.shape[-1]//2] = self.learnable_scaling(Ux[:,:,:Ux.shape[-1]//2])  
+            Ux[:,:,Ux.shape[-1]//2::] = self.learnable_scaling(Ux[:,:,Ux.shape[-1]//2::]) 
+        #Ux shape (batch, time, 2*n_filters)
+        n_filters = Ux.shape[-1]
+        mag = Ux[:,:,:n_filters//2] ** 2 + Ux[:,:,n_filters//2::] ** 2
+        return mag.permute(0,2,1)
 
     def step(self, batch, fold):
         feat = batch['feature']#.to(self.device)

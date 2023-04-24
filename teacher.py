@@ -16,7 +16,7 @@ HYPERPARAMS = {
     "speech_mel": { #mel
         "n_filters": 42,
         "nfft": 32000,
-        "win_length": None,
+        "win_length": 1024,
         "stride": 256,
         "a_opt": 2,
         "sr": 16000, 
@@ -26,7 +26,7 @@ HYPERPARAMS = {
     "speech_gam": { #gam
         "n_filters": 67,
         "nfft": 32000,
-        "win_length": None,
+        "win_length": 1024,
         "stride": 256,
         "a_opt": 8,
         "sr": 16000, 
@@ -36,7 +36,7 @@ HYPERPARAMS = {
     "music": { #vqt
         "n_filters": 96,
         "nfft": 88200,
-        "win_length": None, 
+        "win_length": 1024, 
         "stride": 256,
         "a_opt": 16,
         "sr": 44100,
@@ -46,7 +46,7 @@ HYPERPARAMS = {
     "urban": {  #third
         "n_filters": 32,
         "nfft": 88200,
-        "win_length": None,
+        "win_length": 1024,
         "stride": 256,
         "a_opt": 8,
         "sr": 44100,
@@ -70,7 +70,7 @@ HYPERPARAMS = {
 #   "centerfreq" 
 #   "bandwidths"
 #   "framebounds" computed without subsampling
-
+"""
 with open('Freqz/MEL.pkl', 'rb') as fp:
     MEL = pickle.load(fp)
 with open('Freqz/GAM.pkl', 'rb') as fp:
@@ -79,7 +79,7 @@ with open('Freqz/VQT.pkl', 'rb') as fp:
     VQT = pickle.load(fp)
 with open('Freqz/THIRD.pkl', 'rb') as fp:
     THIRD = pickle.load(fp)
-
+"""
 
 
 class CQTSineData(torch.utils.data.Dataset):
@@ -169,22 +169,25 @@ class SpectrogramDataModule(pl.LightningDataModule):
         self.ids, self.file_names = self.get_ids()
         if domain == "speech":
             self.feature = "mel"
+            self.coef_dir = 'Freqz/GAM.pkl'
         elif domain == "music":
             self.feature = "vqt"
+            self.coef_dir = 'Freqz/VQT.pkl'
         elif domain == "urban":
             self.feature = "third_oct_response"
+            self.coef_dir = 'Freqz/THIRD.pkl'
         self.seg_length = HYPERPARAMS[domain]["nfft"]
         self.stride = HYPERPARAMS[domain]["stride"]
         self.num_workers = 0
-    
+
     def setup(self, stage=None):
         N = len(self.ids)
         train_ids = self.ids[:-N//5]
         test_ids = self.ids[-N // 5: -N // 10]
         val_ids = self.ids[-N//10::]
-        self.train_dataset = SpectrogramData(train_ids, self.audio_dir, self.file_names, self.feature, self.seg_length, self.stride)
-        self.val_dataset = SpectrogramData(test_ids, self.audio_dir, self.file_names, self.feature, self.seg_length, self.stride)
-        self.test_dataset = SpectrogramData(val_ids, self.audio_dir, self.file_names, self.feature, self.seg_length, self.stride)
+        self.train_dataset = SpectrogramData(train_ids, self.audio_dir, self.coef_dir, self.file_names, self.feature, self.seg_length, self.stride)
+        self.val_dataset = SpectrogramData(test_ids, self.audio_dir, self.coef_dir, self.file_names, self.feature, self.seg_length, self.stride)
+        self.test_dataset = SpectrogramData(val_ids, self.audio_dir, self.coef_dir, self.file_names, self.feature, self.seg_length, self.stride)
     
     def get_ids(self):
         files = []
@@ -229,6 +232,7 @@ class SpectrogramData(Dataset):
     def __init__(self,
                  ids,
                  audio_dir,
+                 coef_dir,
                  file_names, 
                  feature,
                  seg_length,
@@ -242,8 +246,8 @@ class SpectrogramData(Dataset):
         self.stride = stride
         self.ids = ids
         #load filter coefficients:
-        coef_path = os.path.join(audio_dir, self.feature + "_freqz.npy") #store coefficeints in "mel_freqz.npy"
-        self.coefficients = torch.tensor(np.load(coef_path))#.to(device)
+        with open(coef_dir, 'rb') as fp:
+            self.freqz = pickle.load(fp)['freqz']
 
     def __getitem__(self, idx): 
         id = self.ids[idx]
@@ -258,7 +262,7 @@ class SpectrogramData(Dataset):
         #sample a random segment 
         start = np.random.randint(x.shape[0] - self.seg_length - 1)
         x = torch.tensor(x[start: start+self.seg_length], dtype=torch.float32)#.to(device)
-        feat = filtering(x, self.coefficients, self.stride)
+        feat = filtering_time(x, self.freqz, self.stride)
         return x, feat
     
 
@@ -335,7 +339,6 @@ def filtering_time(x, freqz, stride):
     # in this way we are close to the circulant setting, but done with conv1D
     out_r = F.conv1d(x, imp_rt, bias=None, stride=stride, padding=freqz.shape[0]//2)
     out_i = F.conv1d(x, imp_it, bias=None, stride=stride, padding=freqz.shape[0]//2)
-
     # magnitude
-    mag = out_r[0,:,:] ** 2 + out_i[0,:,:] ** 2
+    mag = out_r ** 2 + out_i ** 2
     return mag
