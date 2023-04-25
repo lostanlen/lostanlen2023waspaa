@@ -22,11 +22,11 @@ echo "Many thanks to Bea Steers, author of SLURMJOBS."
 sav_dir = f'/scratch/{os.getenv("USER")}/waspaa2023_filterbanks_data'
 run_script, job_paths = jobs.generate(
     [
-        ("domain", ["speech"]),
+        ("domain", ["music", "speech", "synth", "urban"]),
         ("arch", ["TDFilterbank", "LEAF", "MuReNN"]),
         ("init_id", range(5)),
     ],
-    batch_size=32,
+    batch_size=64,
     sav_dir=sav_dir,
 )
 
