@@ -35,7 +35,7 @@ HYPERPARAMS = {
     },
     "music": { #vqt
         "n_filters": 96,
-        "nfft": 88200,
+        "nfft": 2**16,
         "win_length": 1024, 
         "stride": 256,
         "a_opt": 16,

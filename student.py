@@ -77,7 +77,7 @@ class MuReNN(pl.LightningModule):
             spec["fmin"], mel_scale=mel_scale)
         m_max = torchaudio.functional.functional._hz_to_mel(
             spec["fmax"], mel_scale=mel_scale)
-        m_pts = torch.linspace(m_min, m_max, spec["n_mels"] + 2)
+        m_pts = torch.linspace(m_min, m_max, spec["n_filters"] + 2)
         f_pts = torchaudio.functional.functional._mel_to_hz(
             m_pts, mel_scale=mel_scale)
         center_freqs = f_pts[1:-1]
@@ -89,7 +89,7 @@ class MuReNN(pl.LightningModule):
         self.J_psi = max(Q_ctr)
         self.stride = spec["stride"]
         
-        self.tfm = DTCWTForward(J=self.J_psi,
+        self.tfm = DTCWTForward(J=1+self.J_psi,
             alternate_gh=True, include_scale=False)
 
         psis = []
@@ -100,24 +100,26 @@ class MuReNN(pl.LightningModule):
                 kernel_size=Q_multiplier*Q_ctr[j],
                 stride=spec["stride"]//2,
                 bias=False,
-                padding="same")
+                padding=Q_multiplier*Q_ctr[j]//2) # was "same" but unsupported
             psis.append(psi)
             
         self.psis = torch.nn.ParameterList(psis)
                   
     def forward(self, x):
         x = x.reshape(x.shape[0], 1, x.shape[-1])
-        _, x_levels = tfm.forward(x)
+        _, x_levels = self.tfm.forward(x)
         Ux = []
         
-        for j_psi in range(1+self.J_psi):
+        for j_psi in range(1+self.J_psi): #was 1+self.J_psi
             x_level = x_levels[j_psi].type(torch.complex64) / (2**j_psi)
+            #print("different shape?", x_level.shape)
             Wx_real = self.psis[j_psi](x_level.real)
             Wx_imag = self.psis[j_psi](x_level.imag)
             Ux_j = Wx_real * Wx_real + Wx_imag * Wx_imag
-            Ux_j = torch.real(Ux_j)
-          
-        Ux = torch.cat(Ux, axis=1)
+            print("what shape", Ux_j.shape)
+            Ux.append(torch.real(Ux_j))
+            
+        #Ux = torch.cat(Ux, axis=1)
 
         # Flip j axis so that frequencies range from low to high
         Ux = torch.flip(Ux, dims=(-2,))
@@ -144,10 +146,13 @@ class MuReNN(pl.LightningModule):
         self.log('train_loss', loss, prog_bar=False)
     
     def test_epoch_end(self, outputs):
-        pass
+        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+        self.log('test_loss', avg_loss)
 
     def validation_epoch_end(self, outputs):
-        pass
+        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+        self.log('val_loss', avg_loss)
+        
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=1e-3)
@@ -161,8 +166,8 @@ class Leaf(pl.LightningModule):
         super().__init__()
         self.learn_amplitudes = learn_amplitudes
         self.gaborfilter = GaborConv1d(
-            out_channels=2*spec['n_filters'],
-            kernel_size=spec['win_length'], #filter length: should be the provided freqz length divided by stride size?
+            out_channels=2*spec['n_filters'], #should be twice the number of filters to account for real and imaginary parts
+            kernel_size=spec['win_length'], 
             stride = spec['stride'],
             input_shape=None,
             in_channels=spec['n_filters'],
@@ -185,13 +190,13 @@ class Leaf(pl.LightningModule):
             groups=spec['n_filters'],
             bias=False
         )
-        # Ensure positiveness of learned parameters
-        #P.register_parametrization(self.learnable_scaling, "weight", Exp()) 
 
     def forward(self, x):
         #x = x.reshape(x.shape[0], 1, x.shape[1]) #batch time channel
         Ux = self.gaborfilter(x) #(batch, time, filters)
         #print("gabor what shape", Ux.shape, Ux.dtype, torch.sum(Ux<0))
+        # Ensure positiveness of learned parameters
+        P.register_parametrization(self.learnable_scaling, "weight", Exp()) 
         if self.learn_amplitudes: 
             #apply learnable scaling to corresponding real and imaginary channels
             Ux[:,:,:Ux.shape[-1]//2] = self.learnable_scaling(Ux[:,:,:Ux.shape[-1]//2])  
@@ -222,10 +227,12 @@ class Leaf(pl.LightningModule):
         self.log('train_loss', loss, prog_bar=False)
     
     def test_epoch_end(self, outputs):
-        pass
+        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+        self.log('test_loss', avg_loss)
 
     def validation_epoch_end(self, outputs):
-        pass
+        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+        self.log('val_loss', avg_loss)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=1e-3)
