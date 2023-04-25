@@ -73,20 +73,7 @@ class TDFilterbank(pl.LightningModule):
 class MuReNN(pl.LightningModule):
     def __init__(self, spec, Q_multiplier=16):
         super().__init__()
-        
-        mel_scale = "htk"
-        m_min = torchaudio.functional.functional._hz_to_mel(
-            spec["fmin"], mel_scale=mel_scale)
-        m_max = torchaudio.functional.functional._hz_to_mel(
-            spec["fmax"], mel_scale=mel_scale)
-        m_pts = torch.linspace(m_min, m_max, spec["n_filters"] + 2)
-        f_pts = torchaudio.functional.functional._mel_to_hz(
-            m_pts, mel_scale=mel_scale)
-        center_freqs = f_pts[1:-1]
-
-        nyquist = spec["sr"] / 2
-        octaves = np.round(np.log2(
-            nyquist / center_freqs.numpy())).astype("int")
+        octaves = spec["octaves"]
         Q_ctr = Counter(octaves)
         self.J_psi = max(Q_ctr)
         self.stride = spec["stride"]

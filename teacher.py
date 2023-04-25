@@ -12,17 +12,20 @@ import pickle
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+# load everything about the teachers as dictionaries, containing:
+#   "freqz" frequency responses as 2D array (time,channels)
+#   "centerfreq" 
+#   "bandwidths"
+#   "framebounds" computed without subsampling
+with open('Freqz/GAM.pkl', 'rb') as fp:
+    GAM = pickle.load(fp)
+with open('Freqz/VQT.pkl', 'rb') as fp:
+    VQT = pickle.load(fp)
+with open('Freqz/THIRD.pkl', 'rb') as fp:
+    THIRD = pickle.load(fp)
+
+
 HYPERPARAMS = {
-    "speech_mel": { #mel
-        "n_filters": 42,
-        "seg_length": 32000,
-        "win_length": 1024,
-        "stride": 256,
-        "a_opt": 2,
-        "sr": 16000, 
-        "fmin": 65, 
-        "fmax": 8000,
-    },
     "speech_gam": { #gam
         "n_filters": 67,
         "seg_length": 32000,
@@ -32,6 +35,7 @@ HYPERPARAMS = {
         "sr": 16000, 
         "fmin": 12.5, 
         "fmax": 8000,
+        "octaves": GAM["octave_tags"],
     },
     "music": { #vqt
         "n_filters": 96,
@@ -42,6 +46,7 @@ HYPERPARAMS = {
         "sr": 44100,
         "fmin": 100,
         "fmax": 22050,
+        "octaves": VQT["octave_tags"],
     }, 
     "urban": {  #third
         "n_filters": 32,
@@ -52,6 +57,7 @@ HYPERPARAMS = {
         "sr": 44100,
         "fmin": 25,
         "fmax": 20000,
+        "octaves": THIRD["octave_tags"],
     },
     "synth": {
         "bins_per_octave": 1,
@@ -63,24 +69,9 @@ HYPERPARAMS = {
         "fmax": 12800,
         "seg_length": 2**14,
         "n_samples": 1000,
+        "octaves": reversed(range(8)),
     },
 }
-
-# load everything about the teachers as dictionaries, containing:
-#   "freqz" frequency responses as 2D array (time,channels)
-#   "centerfreq" 
-#   "bandwidths"
-#   "framebounds" computed without subsampling
-"""
-with open('Freqz/MEL.pkl', 'rb') as fp:
-    MEL = pickle.load(fp)
-with open('Freqz/GAM.pkl', 'rb') as fp:
-    GAM = pickle.load(fp)
-with open('Freqz/VQT.pkl', 'rb') as fp:
-    VQT = pickle.load(fp)
-with open('Freqz/THIRD.pkl', 'rb') as fp:
-    THIRD = pickle.load(fp)
-"""
 
 
 class CQTSineData(torch.utils.data.Dataset):
