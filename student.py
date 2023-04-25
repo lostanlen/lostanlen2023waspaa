@@ -118,6 +118,10 @@ class MuReNN(pl.LightningModule):
             Ux_j = torch.real(Ux_j)  
             Ux.append(Ux_j)
 
+        Ux = torch.cat(Ux, axis=1)
+
+        # Flip j axis so that frequencies range from low to high
+        Ux = torch.flip(Ux, dims=(-2,))
         return Ux
     
     def step(self, batch, fold):
