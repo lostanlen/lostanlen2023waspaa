@@ -39,10 +39,10 @@ class TDFilterbank(pl.LightningModule):
         return Ux
 
     def step(self, batch, fold):
-        feat = batch['feature']#.to(self.device)
+        feat = batch['feature'].squeeze()#.to(self.device)
         x = batch['x']#.to(self.device).double()
         outputs = self(x)
-        loss = F.mse_loss(outputs[:,:,1:], feat[:,:,1:]) 
+        loss = F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) 
         return {'loss': loss}
     
     def training_step(self, batch):
@@ -132,10 +132,10 @@ class MuReNN(pl.LightningModule):
         return Ux
     
     def step(self, batch, fold):
-        feat = batch['feature']#.to(self.device)
+        feat = batch['feature'].squeeze()#.to(self.device)
         x = batch['x']#.to(self.device).double()
         outputs = self(x)
-        loss = F.mse_loss(outputs[:,:,1:], feat[:,:,1:]) 
+        loss = F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) 
         return {'loss': loss}
     
     def training_step(self, batch):
@@ -198,8 +198,7 @@ class Leaf(pl.LightningModule):
         # Ensure positiveness of learned parameters
         #P.register_parametrization(self.learnable_scaling, "weight", Exp()) 
 
-    def forward(self, x):
-        #x = x.reshape(x.shape[0], 1, x.shape[1]) #batch time channel
+    def forward(self, x): 
         Ux = self.gaborfilter(x) #(batch, time, filters)
         #print("gabor what shape", Ux.shape, Ux.dtype, torch.sum(Ux<0))
         if self.learn_amplitudes: 
@@ -215,7 +214,7 @@ class Leaf(pl.LightningModule):
         feat = batch['feature']#.to(self.device)
         x = batch['x']#.to(self.device).double()
         outputs = self(x)
-        loss = F.mse_loss(outputs[:,:,1:], feat[:,:,1:]) #remove the low pass filter from loss
+        loss = F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) #remove the low pass filter from loss
         return {'loss': loss}
     
     def training_step(self, batch):

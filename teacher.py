@@ -108,8 +108,8 @@ class CQTSineData(torch.utils.data.Dataset):
         t = torch.arange(
             0, self.seg_length/self.spec["sr"], 1/self.spec["sr"])
         x = torch.sin(2*np.pi*freq*t)
-        x = x.reshape(1, -1)
-        return {'freq': freq, 'x': x, 'feature': self.closure(x)}
+        Y = self.closure(x).squeeze()
+        return {'freq': freq, 'x': x, 'feature': Y}
     
     def __len__(self):
         return len(self.freqs)
@@ -135,8 +135,8 @@ class CQTSineDataModule(pl.LightningDataModule):
     def collate_batch(self, batch):
         freq = torch.cat([item['freq'] for item in batch])
         x = torch.cat([item['x'] for item in batch])
-        Y = torch.cat([item['Y'] for item in batch])
-        return {'freq': freq, 'x': x, 'Y': Y}
+        Y = torch.cat([item['feature'] for item in batch])
+        return {'freq': freq, 'x': x, 'feature': Y}
 
     def train_dataloader(self):
         return torch.utils.data.DataLoader(
@@ -205,7 +205,6 @@ class SpectrogramDataModule(pl.LightningDataModule):
     def collate_batch(self, batch):
         feat = torch.stack([s['feature'] for s in batch], axis=0)
         x = torch.stack([s['x']for s in batch]) #batch, time, channel
-        #print("batched feature shape", feat.shape, x.shape, feat.dtype)
         return {'feature': feat, 'x': x}
 
 
