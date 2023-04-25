@@ -98,9 +98,9 @@ class MuReNN(pl.LightningModule):
                 in_channels=1,
                 out_channels=Q_ctr[j],
                 kernel_size=Q_multiplier*Q_ctr[j],
-                stride=spec["stride"]//2,
+                stride=spec["stride"]//2**j,
                 bias=False,
-                padding=Q_multiplier*Q_ctr[j]//2) # was "same" but unsupported
+                padding=spec["stride"]//2)
             psis.append(psi)
             
         self.psis = torch.nn.ParameterList(psis)
@@ -116,10 +116,10 @@ class MuReNN(pl.LightningModule):
             Wx_real = self.psis[j_psi](x_level.real)
             Wx_imag = self.psis[j_psi](x_level.imag)
             Ux_j = Wx_real * Wx_real + Wx_imag * Wx_imag
-            print("what shape", Ux_j.shape)
-            Ux.append(torch.real(Ux_j))
-            
-        #Ux = torch.cat(Ux, axis=1)
+            Ux_j = torch.real(Ux_j)  
+            Ux.append(Ux_j)
+
+        Ux = torch.cat(Ux, axis=1)
 
         # Flip j axis so that frequencies range from low to high
         Ux = torch.flip(Ux, dims=(-2,))
