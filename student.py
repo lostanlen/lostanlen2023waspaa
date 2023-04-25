@@ -77,7 +77,7 @@ class MuReNN(pl.LightningModule):
             spec["fmin"], mel_scale=mel_scale)
         m_max = torchaudio.functional.functional._hz_to_mel(
             spec["fmax"], mel_scale=mel_scale)
-        m_pts = torch.linspace(m_min, m_max, spec["n_mels"] + 2)
+        m_pts = torch.linspace(m_min, m_max, spec["n_filters"] + 2)
         f_pts = torchaudio.functional.functional._mel_to_hz(
             m_pts, mel_scale=mel_scale)
         center_freqs = f_pts[1:-1]
@@ -100,7 +100,7 @@ class MuReNN(pl.LightningModule):
                 kernel_size=Q_multiplier*Q_ctr[j],
                 stride=spec["stride"]//2,
                 bias=False,
-                padding="same")
+                padding=spec["stride"]//2)
             psis.append(psi)
             
         self.psis = torch.nn.ParameterList(psis)
