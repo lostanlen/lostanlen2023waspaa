@@ -95,7 +95,7 @@ class MuReNN(pl.LightningModule):
         psis = []
         for j in range(1+self.J_psi):
             kernel_size = Q_multiplier*Q_ctr[j]
-            stride_j = (2**j) * spec["stride"]//2
+            stride_j = spec["stride"]// (2 * (2**j))
             psi = torch.nn.Conv1d(
                 in_channels=1,
                 out_channels=Q_ctr[j],
