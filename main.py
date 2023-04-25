@@ -42,7 +42,11 @@ def run(sav_dir, domain, arch, init_id, batch_size, job_id):
     pred_path = os.path.join(model_sav_path, "predictions.npy")
 
     # Initialize dataset
-    dataset = teacher.SpectrogramDataModule(sav_dir=sav_dir, domain=domain, batch_size=batch_size)
+    if domain == "synth":
+        dataset = teacher.CQTSineDataModule(domain=domain, batch_size=batch_size)
+    else:
+        dataset = teacher.SpectrogramDataModule(
+            sav_dir=sav_dir, domain=domain, batch_size=batch_size)
     print(str(datetime.datetime.now()) + " Finished initializing dataset")
 
     if torch.cuda.is_available():

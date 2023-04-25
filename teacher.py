@@ -54,6 +54,7 @@ HYPERPARAMS = {
         "fmax": 20000,
     },
     "synth": {
+        "bins_per_octave": 8,
         "n_filters": 8,
         "win_length": 2**10,
         "stride": 2**8,
@@ -93,7 +94,7 @@ class CQTSineData(torch.utils.data.Dataset):
             "n_bins": spec["n_filters"],
             "sr": spec["sr"],
         }
-        self.N = spec["N"]
+        self.seg_length = spec["seg_length"]
         self.freqs = np.logspace(
             np.log10(spec["fmin"]/2),
             np.log10(spec["fmax"]*2),
@@ -104,7 +105,8 @@ class CQTSineData(torch.utils.data.Dataset):
 
     def __getitem__(self, freq_id):
         freq = self.freqs[freq_id]
-        t = torch.arange(0, self.N/self.spec["sr"], 1/self.spec["sr"])
+        t = torch.arange(
+            0, self.seg_length/self.spec["sr"], 1/self.spec["sr"])
         x = torch.sin(2*np.pi*freq*t)
         x = x.reshape(1, -1)
         return {'freq': freq, 'x': x, 'Y': self.closure(x)}
