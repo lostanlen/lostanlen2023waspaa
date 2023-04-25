@@ -89,18 +89,20 @@ class MuReNN(pl.LightningModule):
         self.J_psi = max(Q_ctr)
         self.stride = spec["stride"]
         
-        self.tfm = DTCWTForward(J=1+self.J_psi,
+        self.tfm = DTCWTForward(J=self.J_psi,
             alternate_gh=True, include_scale=False)
 
         psis = []
         for j in range(1+self.J_psi):
+            kernel_size = Q_multiplier*Q_ctr[j]
+            stride_j = (2**j) * spec["stride"]//2
             psi = torch.nn.Conv1d(
                 in_channels=1,
                 out_channels=Q_ctr[j],
-                kernel_size=Q_multiplier*Q_ctr[j],
-                stride=spec["stride"]//2**j,
+                kernel_size=kernel_size,
+                stride=stride_j,
                 bias=False,
-                padding=spec["stride"]//2)
+                padding=kernel_size//2)
             psis.append(psi)
             
         self.psis = torch.nn.ParameterList(psis)
@@ -110,9 +112,8 @@ class MuReNN(pl.LightningModule):
         _, x_levels = self.tfm.forward(x)
         Ux = []
         
-        for j_psi in range(1+self.J_psi): #was 1+self.J_psi
+        for j_psi in range(1+self.J_psi):
             x_level = x_levels[j_psi].type(torch.complex64) / (2**j_psi)
-            #print("different shape?", x_level.shape)
             Wx_real = self.psis[j_psi](x_level.real)
             Wx_imag = self.psis[j_psi](x_level.imag)
             Ux_j = Wx_real * Wx_real + Wx_imag * Wx_imag
@@ -146,13 +147,10 @@ class MuReNN(pl.LightningModule):
         self.log('train_loss', loss, prog_bar=False)
     
     def test_epoch_end(self, outputs):
-        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
-        self.log('test_loss', avg_loss)
+        pass
 
     def validation_epoch_end(self, outputs):
-        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
-        self.log('val_loss', avg_loss)
-        
+        pass
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=1e-3)
@@ -166,8 +164,8 @@ class Leaf(pl.LightningModule):
         super().__init__()
         self.learn_amplitudes = learn_amplitudes
         self.gaborfilter = GaborConv1d(
-            out_channels=2*spec['n_filters'], #should be twice the number of filters to account for real and imaginary parts
-            kernel_size=spec['win_length'], 
+            out_channels=2*spec['n_filters'],
+            kernel_size=spec['win_length'], #filter length: should be the provided freqz length divided by stride size?
             stride = spec['stride'],
             input_shape=None,
             in_channels=spec['n_filters'],
@@ -190,13 +188,13 @@ class Leaf(pl.LightningModule):
             groups=spec['n_filters'],
             bias=False
         )
+        # Ensure positiveness of learned parameters
+        #P.register_parametrization(self.learnable_scaling, "weight", Exp()) 
 
     def forward(self, x):
         #x = x.reshape(x.shape[0], 1, x.shape[1]) #batch time channel
         Ux = self.gaborfilter(x) #(batch, time, filters)
         #print("gabor what shape", Ux.shape, Ux.dtype, torch.sum(Ux<0))
-        # Ensure positiveness of learned parameters
-        P.register_parametrization(self.learnable_scaling, "weight", Exp()) 
         if self.learn_amplitudes: 
             #apply learnable scaling to corresponding real and imaginary channels
             Ux[:,:,:Ux.shape[-1]//2] = self.learnable_scaling(Ux[:,:,:Ux.shape[-1]//2])  
@@ -227,12 +225,10 @@ class Leaf(pl.LightningModule):
         self.log('train_loss', loss, prog_bar=False)
     
     def test_epoch_end(self, outputs):
-        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
-        self.log('test_loss', avg_loss)
+        pass
 
     def validation_epoch_end(self, outputs):
-        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
-        self.log('val_loss', avg_loss)
+        pass
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=1e-3)
