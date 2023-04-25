@@ -5,7 +5,7 @@ jobs = slurmjobs.Singularity(
     "python main.py",
     f'/scratch/{os.getenv("USER")}/wa23_overlay-15GB-500K.ext3:ro',
     "cuda11.8.86-cudnn8.7-devel-ubuntu22.04.2.sif",
-    email=f'{os.getenv("USER")}@nyu.edu',
+    email='',
     template="""{% extends 'job.singularity.j2' %}
   
 {% block main %}
