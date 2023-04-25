@@ -59,10 +59,12 @@ class TDFilterbank(pl.LightningModule):
         self.log('train_loss', loss, prog_bar=False)
     
     def test_epoch_end(self, outputs):
-        pass
+        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+        self.log('test_loss', avg_loss, prog_bar=False)
 
     def validation_epoch_end(self, outputs):
-        pass
+        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+        self.log('val_loss', avg_loss, prog_bar=False)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=1e-3)
@@ -150,10 +152,12 @@ class MuReNN(pl.LightningModule):
         self.log('train_loss', loss, prog_bar=False)
     
     def test_epoch_end(self, outputs):
-        pass
+        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+        self.log('test_loss', avg_loss, prog_bar=False)
 
     def validation_epoch_end(self, outputs):
-        pass
+        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+        self.log('val_loss', avg_loss, prog_bar=False)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=1e-3)
@@ -228,10 +232,13 @@ class Leaf(pl.LightningModule):
         self.log('train_loss', loss, prog_bar=False)
     
     def test_epoch_end(self, outputs):
-        pass
+        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+        self.log('test_loss', avg_loss, prog_bar=False)
+        
 
     def validation_epoch_end(self, outputs):
-        pass
+        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+        self.log('val_loss', avg_loss, prog_bar=False)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=1e-3)
