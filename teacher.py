@@ -54,7 +54,7 @@ HYPERPARAMS = {
         "fmax": 20000,
     },
     "synth": {
-        "bins_per_octave": 8,
+        "bins_per_octave": 1,
         "n_filters": 8,
         "win_length": 2**10,
         "stride": 2**8,
