@@ -335,7 +335,7 @@ def filtering_time(x, freqz, stride):
     # some shaping to fit for conv1D
     x = x.T
     x = x.unsqueeze(0)
-    imp_r, imp_i = get_imp(freqz)
+    imp_r, imp_i = get_imp(freqz) # remove lowpass filter 
     imp_rt = imp_r.unsqueeze(1).float()
     imp_it = imp_i.unsqueeze(1).float()
 

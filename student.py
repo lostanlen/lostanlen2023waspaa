@@ -42,7 +42,7 @@ class TDFilterbank(pl.LightningModule):
         feat = batch['feature']#.to(self.device)
         x = batch['x']#.to(self.device).double()
         outputs = self(x)
-        loss = F.mse_loss(outputs, feat)
+        loss = F.mse_loss(outputs[:,:,1:], feat[:,:,1:]) 
         return {'loss': loss}
     
     def training_step(self, batch):
@@ -120,10 +120,10 @@ class MuReNN(pl.LightningModule):
             Wx_real = self.psis[j_psi](x_level.real)
             Wx_imag = self.psis[j_psi](x_level.imag)
             Ux_j = Wx_real * Wx_real + Wx_imag * Wx_imag
-            Ux_j = torch.real(Ux_j)  
+            Ux_j = torch.real(Ux_j) 
             Ux.append(Ux_j)
 
-        Ux = torch.cat(Ux, axis=1)
+        Ux = torch.cat(Ux, axis=2)
 
         # Flip j axis so that frequencies range from low to high
         Ux = torch.flip(Ux, dims=(-2,))
@@ -133,7 +133,7 @@ class MuReNN(pl.LightningModule):
         feat = batch['feature']#.to(self.device)
         x = batch['x']#.to(self.device).double()
         outputs = self(x)
-        loss = F.mse_loss(outputs, feat)
+        loss = F.mse_loss(outputs[:,:,1:], feat[:,:,1:]) 
         return {'loss': loss}
     
     def training_step(self, batch):
@@ -167,9 +167,9 @@ class Leaf(pl.LightningModule):
         super().__init__()
         self.learn_amplitudes = learn_amplitudes
         self.gaborfilter = GaborConv1d(
-            out_channels=2*spec['n_filters'],
+            out_channels=2*spec['n_filters'], 
             kernel_size=spec['win_length'], #filter length: should be the provided freqz length divided by stride size?
-            stride = spec['stride'],
+            stride=spec['stride'],
             input_shape=None,
             in_channels=spec['n_filters'],
             padding='same',
@@ -211,7 +211,7 @@ class Leaf(pl.LightningModule):
         feat = batch['feature']#.to(self.device)
         x = batch['x']#.to(self.device).double()
         outputs = self(x)
-        loss = F.mse_loss(outputs, feat)
+        loss = F.mse_loss(outputs[:,:,1:], feat[:,:,1:]) #remove the low pass filter from loss
         return {'loss': loss}
     
     def training_step(self, batch):
