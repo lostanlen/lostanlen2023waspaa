@@ -89,13 +89,16 @@ class MuReNN(pl.LightningModule):
         self.J_psi = max(Q_ctr)
         self.stride = spec["stride"]
         
-        self.tfm = DTCWTForward(J=self.J_psi+1,
+        self.tfm = DTCWTForward(J=1+self.J_psi,
             alternate_gh=True, include_scale=False)
 
         psis = []
         for j in range(1+self.J_psi):
             kernel_size = Q_multiplier*Q_ctr[j]
-            stride_j = spec["stride"]// ( (2**j))
+            if j == 0:
+                stride_j = spec["stride"]
+            else:
+                stride_j = spec["stride"] // (2**(j-1))
             psi = torch.nn.Conv1d(
                 in_channels=1,
                 out_channels=Q_ctr[j],
