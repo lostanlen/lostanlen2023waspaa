@@ -61,7 +61,7 @@ HYPERPARAMS = {
         "sr": 44100,
         "fmin": 50,
         "fmax": 12800,
-        "seg_length": 2**13,
+        "seg_length": 2**14,
         "n_samples": 1000,
     },
 }
@@ -109,7 +109,7 @@ class CQTSineData(torch.utils.data.Dataset):
             0, self.seg_length/self.spec["sr"], 1/self.spec["sr"])
         x = torch.sin(2*np.pi*freq*t)
         x = x.reshape(1, -1)
-        return {'freq': freq, 'x': x, 'Y': self.closure(x)}
+        return {'freq': freq, 'x': x, 'feature': self.closure(x)}
     
     def __len__(self):
         return len(self.freqs)
