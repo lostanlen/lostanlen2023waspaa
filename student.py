@@ -54,15 +54,15 @@ class TDFilterbank(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         return self.step(batch, "test")
 
-    def training_epoch_end(self, outputs):
+    def on_train_epoch_end(self, outputs):
         loss = torch.stack([x['loss'] for x in outputs]).mean()
         self.log('train_loss', loss, prog_bar=False)
     
-    def test_epoch_end(self, outputs):
+    def on_test_epoch_end(self, outputs):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
         self.log('test_loss', avg_loss, prog_bar=False)
 
-    def validation_epoch_end(self, outputs):
+    def on_validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
         self.log('val_loss', avg_loss, prog_bar=False)
 
@@ -134,15 +134,15 @@ class MuReNN(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         return self.step(batch, "test")
 
-    def training_epoch_end(self, outputs):
+    def on_train_epoch_end(self, outputs):
         loss = torch.stack([x['loss'] for x in outputs]).mean()
         self.log('train_loss', loss, prog_bar=False)
     
-    def test_epoch_end(self, outputs):
+    def on_test_epoch_end(self, outputs):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
         self.log('test_loss', avg_loss, prog_bar=False)
 
-    def validation_epoch_end(self, outputs):
+    def on_validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
         self.log('val_loss', avg_loss, prog_bar=False)
 
@@ -213,16 +213,15 @@ class Leaf(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         return self.step(batch, "test")
 
-    def training_epoch_end(self, outputs):
+    def on_train_epoch_end(self, outputs):
         loss = torch.stack([x['loss'] for x in outputs]).mean()
         self.log('train_loss', loss, prog_bar=False)
     
-    def test_epoch_end(self, outputs):
+    def on_test_epoch_end(self, outputs):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
         self.log('test_loss', avg_loss, prog_bar=False)
         
-
-    def validation_epoch_end(self, outputs):
+    def on_validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
         self.log('val_loss', avg_loss, prog_bar=False)
 
