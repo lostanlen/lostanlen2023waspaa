@@ -107,7 +107,7 @@ class MuReNN(pl.LightningModule):
                   
     def forward(self, x):
         x = x.reshape(x.shape[0], 1, x.shape[-1])
-        _, x_levels = tfm.forward(x)
+        _, x_levels = self.tfm.forward(x)
         Ux = []
         
         for j_psi in range(1+self.J_psi):
@@ -115,12 +115,9 @@ class MuReNN(pl.LightningModule):
             Wx_real = self.psis[j_psi](x_level.real)
             Wx_imag = self.psis[j_psi](x_level.imag)
             Ux_j = Wx_real * Wx_real + Wx_imag * Wx_imag
-            Ux_j = torch.real(Ux_j)
-          
-        Ux = torch.cat(Ux, axis=1)
+            Ux_j = torch.real(Ux_j)  
+            Ux.append(Ux_j)
 
-        # Flip j axis so that frequencies range from low to high
-        Ux = torch.flip(Ux, dims=(-2,))
         return Ux
     
     def step(self, batch, fold):
