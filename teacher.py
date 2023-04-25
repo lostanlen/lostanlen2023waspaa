@@ -294,7 +294,7 @@ def filtering_frequency(x, freqz, stride):
     return mag
 
 
-def get_fr(freqz, centering = True, to_torch = True):
+def get_imp(freqz, centering = True, to_torch = True):
     """
     Get the impulse reponses as tensors
 
@@ -331,7 +331,7 @@ def filtering_time(x, freqz, stride):
     # some shaping to fit for conv1D
     x = x.T
     x = x.unsqueeze(0)
-    imp_r, imp_i = get_fr(freqz)
+    imp_r, imp_i = get_imp(freqz)
     imp_rt = imp_r.unsqueeze(1).float()
     imp_it = imp_i.unsqueeze(1).float()
 
