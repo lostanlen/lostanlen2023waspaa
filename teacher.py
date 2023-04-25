@@ -15,7 +15,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 HYPERPARAMS = {
     "speech_mel": { #mel
         "n_filters": 42,
-        "nfft": 32000,
+        "seg_length": 32000,
         "win_length": 1024,
         "stride": 256,
         "a_opt": 2,
@@ -25,7 +25,7 @@ HYPERPARAMS = {
     },
     "speech_gam": { #gam
         "n_filters": 67,
-        "nfft": 32000,
+        "seg_length": 32000,
         "win_length": 1024,
         "stride": 256,
         "a_opt": 8,
@@ -35,7 +35,7 @@ HYPERPARAMS = {
     },
     "music": { #vqt
         "n_filters": 96,
-        "nfft": 2**16,
+        "seg_length": 2**16,
         "win_length": 1024, 
         "stride": 256,
         "a_opt": 16,
@@ -45,7 +45,7 @@ HYPERPARAMS = {
     }, 
     "urban": {  #third
         "n_filters": 32,
-        "nfft": 88200,
+        "seg_length": 88200,
         "win_length": 1024,
         "stride": 256,
         "a_opt": 8,
@@ -60,7 +60,7 @@ HYPERPARAMS = {
         "sr": 44100,
         "fmin": 50,
         "fmax": 12800,
-        "N": 2**13,
+        "seg_length": 2**13,
         "n_samples": 1000,
     },
 }
@@ -178,7 +178,7 @@ class SpectrogramDataModule(pl.LightningDataModule):
         elif domain == "urban":
             self.feature = "third_oct_response"
             self.coef_dir = 'Freqz/THIRD.pkl'
-        self.seg_length = HYPERPARAMS[domain]["nfft"]
+        self.seg_length = HYPERPARAMS[domain]["seg_length"]
         self.stride = HYPERPARAMS[domain]["stride"]
         self.num_workers = 0
 
