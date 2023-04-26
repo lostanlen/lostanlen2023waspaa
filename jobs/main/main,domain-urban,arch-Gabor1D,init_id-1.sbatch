@@ -1,17 +1,17 @@
 #!/bin/bash
-#SBATCH --job-name=main,domain-music,arch-LEAF,init_id-1
-#SBATCH --output=jobs/main/slurm/slurm_%j__main,domain-music,arch-LEAF,init_id-1.log
+#SBATCH --job-name=main,domain-urban,arch-Gabor1D,init_id-1
+#SBATCH --output=jobs/main/slurm/slurm_%j__main,domain-urban,arch-Gabor1D,init_id-1.log
 
 
 #########################
 #
-# Job: main,domain-music,arch-LEAF,init_id-1
+# Job: main,domain-urban,arch-Gabor1D,init_id-1
 # Args: 
-# {'arch': 'LEAF',
+# {'arch': 'Gabor1D',
 #  'batch_size': 64,
-#  'domain': 'music',
+#  'domain': 'urban',
 #  'init_id': 1,
-#  'job_id': 'main,domain-music,arch-LEAF,init_id-1',
+#  'job_id': 'main,domain-urban,arch-Gabor1D,init_id-1',
 #  'sav_dir': '/scratch/vl1019/waspaa2023_filterbanks_data'}
 #
 #########################
@@ -39,12 +39,12 @@ echo "@: entered singularity container"
 echo "Optimizing auditory filterbanks by gradient descent"
 
 python main.py \
-    --domain=music \
-    --arch=LEAF \
+    --domain=urban \
+    --arch=Gabor1D \
     --init_id=1 \
     --batch_size=64 \
     --sav_dir=/scratch/vl1019/waspaa2023_filterbanks_data \
-    --job_id=main,domain-music,arch-LEAF,init_id-1
+    --job_id=main,domain-urban,arch-Gabor1D,init_id-1
 
 
 echo "Many thanks to Bea Steers, author of SLURMJOBS."

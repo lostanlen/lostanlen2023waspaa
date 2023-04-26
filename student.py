@@ -185,7 +185,7 @@ class Exp(nn.Module):
     def forward(self, X):
         return torch.exp(X)
 
-class Leaf(pl.LightningModule):
+class Gabor1D(pl.LightningModule):
     def __init__(self, spec, learn_amplitudes=False):
         super().__init__()
         self.learn_amplitudes = learn_amplitudes
