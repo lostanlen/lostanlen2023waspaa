@@ -1,6 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=main,domain-urban,arch-TDFilterbank,init_id-3
 #SBATCH --output=jobs/main/slurm/slurm_%j__main,domain-urban,arch-TDFilterbank,init_id-3.log
+#SBATCH --time=5:00:00
 
 
 #########################

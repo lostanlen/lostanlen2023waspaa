@@ -1,6 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=main,domain-synth,arch-Gabor1D,init_id-2
 #SBATCH --output=jobs/main/slurm/slurm_%j__main,domain-synth,arch-Gabor1D,init_id-2.log
+#SBATCH --time=5:00:00
 
 
 #########################

@@ -1,6 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=main,domain-music,arch-MuReNN,init_id-4
 #SBATCH --output=jobs/main/slurm/slurm_%j__main,domain-music,arch-MuReNN,init_id-4.log
+#SBATCH --time=5:00:00
 
 
 #########################
