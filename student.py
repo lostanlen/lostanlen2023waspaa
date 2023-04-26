@@ -180,6 +180,10 @@ class MuReNN(Student):
             Wx_imag = self.psis[j_psi](x_level.imag)
             Ux_j = Wx_real * Wx_real + Wx_imag * Wx_imag
             Ux_j = torch.real(Ux_j)
+            if j_psi == 0:
+                N_j = Ux_j.shape[-1]
+            else:
+                Ux_j = Ux_j[:, :, :N_j]
             Ux.append(Ux_j)
 
         Ux = torch.cat(Ux, axis=1)
