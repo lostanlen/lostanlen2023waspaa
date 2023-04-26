@@ -33,7 +33,9 @@ class TDFilterbank(pl.LightningModule):
         self.train_outputs = []
         self.test_outputs = []
         self.val_outputs = []
-
+        self.loss = nn.CosineSimilarity(dim=-1)
+        #self.loss = F.mse_loss
+        
     def forward(self, x):
         x = x.reshape(x.shape[0], 1, x.shape[-1])
         Wx_real = self.psi_real(x)
@@ -45,7 +47,9 @@ class TDFilterbank(pl.LightningModule):
         feat = batch['feature'].squeeze()#.to(self.device)
         x = batch['x']#.to(self.device).double()
         outputs = self(x)
-        loss = F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) 
+        #loss = F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) 
+        loss = -torch.mean(self.loss(outputs[:,1:,:].flatten(start_dim=1), 
+                                        feat[:,1:,:].flatten(start_dim=1)))
         if fold == "train":
             self.train_outputs.append(loss)
         elif fold == "test":
@@ -115,7 +119,8 @@ class MuReNN(pl.LightningModule):
         self.train_outputs = []
         self.test_outputs = []
         self.val_outputs = []
-                  
+        self.loss = nn.CosineSimilarity(dim=-1)
+
     def forward(self, x):
         x = x.reshape(x.shape[0], 1, x.shape[-1])
         _, x_levels = self.tfm.forward(x)
@@ -140,9 +145,11 @@ class MuReNN(pl.LightningModule):
         x = batch['x']#.to(self.device).double()
         outputs = self(x)
         if outputs.shape[-2] + 1 == feat.shape[-2]:
-            loss = F.mse_loss(outputs, feat[:,1:,:]) 
+            loss = -torch.mean(self.loss(outputs.flatten(start_dim=1), 
+                                        feat[:,1:,:].flatten(start_dim=1)))#F.mse_loss(outputs, feat[:,1:,:]) 
         else:
-            loss = F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) 
+            loss = -torch.mean(self.loss(outputs[:,1:,:].flatten(start_dim=1), 
+                                        feat[:,1:,:].flatten(start_dim=1)))#F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) 
         
         if fold == "train":
             self.train_outputs.append(loss)
@@ -218,6 +225,7 @@ class Gabor1D(pl.LightningModule):
         self.train_outputs = []
         self.test_outputs = []
         self.val_outputs = []
+        self.loss = nn.CosineSimilarity(dim=-1)
 
     def forward(self, x): 
         Ux = self.gaborfilter(x) #(batch, time, filters)
@@ -236,8 +244,10 @@ class Gabor1D(pl.LightningModule):
         feat = batch['feature']#.to(self.device)
         x = batch['x']#.to(self.device).double()
         outputs = self(x)
-        loss = F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) #remove the low pass filter from loss
-        
+        #loss = F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) #remove the low pass filter from loss
+        loss = -torch.mean(self.loss(outputs[:,1:,:].flatten(start_dim=1), 
+                                        feat[:,1:,:].flatten(start_dim=1)))
+
         if fold == "train":
             self.train_outputs.append(loss)
         elif fold == "test":
