@@ -3,9 +3,9 @@ import slurmjobs
 
 jobs = slurmjobs.Singularity(
     "python main.py",
-    f'/scratch/{os.getenv("USER")}/wa23_overlay-15GB-500K.ext3:ro',
+    f'/scratch/{os.getenv("USER")}/wa23_overlay-15GB-500K.ext3',
     "cuda11.8.86-cudnn8.7-devel-ubuntu22.04.2.sif",
-    email=f'{os.getenv("USER")}@nyu.edu',
+    email='',
     template="""{% extends 'job.singularity.j2' %}
   
 {% block main %}
@@ -22,11 +22,11 @@ echo "Many thanks to Bea Steers, author of SLURMJOBS."
 sav_dir = f'/scratch/{os.getenv("USER")}/waspaa2023_filterbanks_data'
 run_script, job_paths = jobs.generate(
     [
-        ("domain", ["speech"]),
+        ("domain", ["music", "speech", "synth", "urban"]),
         ("arch", ["TDFilterbank", "LEAF", "MuReNN"]),
         ("init_id", range(5)),
     ],
-    batch_size=32,
+    batch_size=64,
     sav_dir=sav_dir,
 )
 
