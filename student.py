@@ -102,7 +102,7 @@ class Gabor1D(Student):
         super().__init__(spec)
         self.learn_amplitudes = learn_amplitudes
         self.gaborfilter = GaborConv1d(
-            out_channels=spec['n_filters'], 
+            out_channels=spec['n_filters']+1, 
             kernel_size=spec['win_length'],
             stride=spec['stride'],
             input_shape=None,
@@ -128,7 +128,7 @@ class Gabor1D(Student):
         )
 
     def forward(self, x): 
-        Yx = self.gaborfilter(x) # (batch, time, filters)
+        Yx = self.gaborfilter(x)[:self.spec["n_filters"]] # (batch, time, filters)
         Yx = Yx.permute(0, 2, 1) # (batch, filters, time)
         # Ensure positiveness of learned parameters
         P.register_parametrization(self.learnable_scaling, "weight", Exp()) 
