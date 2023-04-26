@@ -1,17 +1,17 @@
 #!/bin/bash
-#SBATCH --job-name=main,domain-speech,arch-MuReNN,init_id-4
-#SBATCH --output=jobs/main/slurm/slurm_%j__main,domain-speech,arch-MuReNN,init_id-4.log
+#SBATCH --job-name=main,domain-urban,arch-LEAF,init_id-1
+#SBATCH --output=jobs/main/slurm/slurm_%j__main,domain-urban,arch-LEAF,init_id-1.log
 
 
 #########################
 #
-# Job: main,domain-speech,arch-MuReNN,init_id-4
+# Job: main,domain-urban,arch-LEAF,init_id-1
 # Args: 
-# {'arch': 'MuReNN',
+# {'arch': 'LEAF',
 #  'batch_size': 64,
-#  'domain': 'speech',
-#  'init_id': 4,
-#  'job_id': 'main,domain-speech,arch-MuReNN,init_id-4',
+#  'domain': 'urban',
+#  'init_id': 1,
+#  'job_id': 'main,domain-urban,arch-LEAF,init_id-1',
 #  'sav_dir': '/scratch/vl1019/waspaa2023_filterbanks_data'}
 #
 #########################
@@ -39,12 +39,12 @@ echo "@: entered singularity container"
 echo "Optimizing auditory filterbanks by gradient descent"
 
 python main.py \
-    --domain=speech \
-    --arch=MuReNN \
-    --init_id=4 \
+    --domain=urban \
+    --arch=LEAF \
+    --init_id=1 \
     --batch_size=64 \
     --sav_dir=/scratch/vl1019/waspaa2023_filterbanks_data \
-    --job_id=main,domain-speech,arch-MuReNN,init_id-4
+    --job_id=main,domain-urban,arch-LEAF,init_id-1
 
 
 echo "Many thanks to Bea Steers, author of SLURMJOBS."
