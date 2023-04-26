@@ -8,6 +8,7 @@ import os
 import soundfile as sf
 import torch.nn.functional as F
 import pickle
+import librosa
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -25,9 +26,9 @@ with open('Freqz/THIRD.pkl', 'rb') as fp:
 
 
 HYPERPARAMS = {
-    "speech_gam": { #gam
+    "speech": { #gam
         "n_filters": 67,
-        "seg_length": 32000,
+        "seg_length": 2**12,
         "win_length": 1024,
         "stride": 256,
         "a_opt": 8,
@@ -38,7 +39,7 @@ HYPERPARAMS = {
     },
     "music": { #vqt
         "n_filters": 96,
-        "seg_length": 2**16,
+        "seg_length": 2**12,
         "win_length": 1024, 
         "stride": 256,
         "a_opt": 16,
@@ -49,7 +50,7 @@ HYPERPARAMS = {
     }, 
     "urban": {  #third
         "n_filters": 32,
-        "seg_length": 88200,
+        "seg_length": 2**12,
         "win_length": 1024,
         "stride": 256,
         "a_opt": 8,
@@ -160,16 +161,19 @@ class SpectrogramDataModule(pl.LightningDataModule):
         super().__init__()
         self.audio_dir = sav_dir
         self.batch_size = batch_size
-        self.ids, self.file_names = self.get_ids()
         if domain == "speech":
             self.feature = "mel"
             self.coef_dir = 'Freqz/GAM.pkl'
+            self.data_dir = 'NTVOW'
         elif domain == "music":
             self.feature = "vqt"
             self.coef_dir = 'Freqz/VQT.pkl'
+            self.data_dir = "SOL"
         elif domain == "urban":
             self.feature = "third_oct_response"
             self.coef_dir = 'Freqz/THIRD.pkl'
+            self.data_dir = "SONYC-UST-dev"
+        self.ids, self.file_names = self.get_ids()
         self.seg_length = HYPERPARAMS[domain]["seg_length"]
         self.stride = HYPERPARAMS[domain]["stride"]
         self.num_workers = 0
@@ -185,7 +189,7 @@ class SpectrogramDataModule(pl.LightningDataModule):
     
     def get_ids(self):
         files = []
-        for root, dirs, fs in os.walk(self.audio_dir):
+        for root, dirs, fs in os.walk(os.path.join(self.audio_dir, self.data_dir)):
             for f in fs:
                 if f[-3:] == "wav":
                     files.append(os.path.join(root, f))
@@ -252,9 +256,11 @@ class SpectrogramData(Dataset):
 
     def feat_from_id(self, id):
         x, sr = sf.read(self.file_names[int(id)])
-        #sample a random segment 
-        start = np.random.randint(x.shape[0] - self.seg_length - 1)
-        x = torch.tensor(x[start: start+self.seg_length], dtype=torch.float32)#.to(device)
+        #sample from middle a segment 
+        start = max(x.shape[0]//2 - self.seg_length//2, 0)
+        stop = min(x.shape[0]//2 + self.seg_length//2, x.shape[0]-1)
+        x = torch.tensor(x[start:stop], dtype=torch.float32)
+        x = librosa.util.fix_length(x, size=self.seg_length)
         feat = filtering_time(x, self.freqz, self.stride)
         return x, feat
     
