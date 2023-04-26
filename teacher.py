@@ -25,9 +25,9 @@ with open('Freqz/THIRD.pkl', 'rb') as fp:
 
 
 HYPERPARAMS = {
-    "speech_gam": { #gam
+    "speech": { #gam
         "n_filters": 67,
-        "seg_length": 32000,
+        "seg_length": 2**14,
         "win_length": 1024,
         "stride": 256,
         "a_opt": 8,
@@ -49,7 +49,7 @@ HYPERPARAMS = {
     }, 
     "urban": {  #third
         "n_filters": 32,
-        "seg_length": 88200,
+        "seg_length": 2**16,
         "win_length": 1024,
         "stride": 256,
         "a_opt": 8,
