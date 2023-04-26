@@ -65,7 +65,7 @@ class Student(pl.LightningModule):
 
 class TDFilterbank(Student):
     def __init__(self, spec):
-        super().__init__()
+        super().__init__(spec)
 
         self.psi_real = torch.nn.Conv1d(
             in_channels=1,
@@ -99,7 +99,7 @@ class Exp(nn.Module):
 
 class Gabor1D(Student):
     def __init__(self, spec, learn_amplitudes=False):
-        super().__init__()
+        super().__init__(spec)
         self.learn_amplitudes = learn_amplitudes
         self.gaborfilter = GaborConv1d(
             out_channels=2*spec['n_filters'], 
@@ -142,7 +142,7 @@ class Gabor1D(Student):
 
 class MuReNN(Student):
     def __init__(self, spec, Q_multiplier=16):
-        super().__init__()
+        super().__init__(spec)
         octaves = spec["octaves"]
         Q_ctr = Counter(octaves)
         self.J_psi = max(Q_ctr)
