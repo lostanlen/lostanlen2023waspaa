@@ -102,11 +102,11 @@ class Gabor1D(Student):
         super().__init__(spec)
         self.learn_amplitudes = learn_amplitudes
         self.gaborfilter = GaborConv1d(
-            out_channels=2*spec['n_filters'], 
+            out_channels=spec['n_filters'], 
             kernel_size=spec['win_length'], #filter length: should be the provided freqz length divided by stride size?
             stride=spec['stride'],
             input_shape=None,
-            in_channels=spec['n_filters'],
+            in_channels=1,
             padding='same',
             padding_mode='constant',
             sample_rate=spec['sr'],
@@ -132,13 +132,16 @@ class Gabor1D(Student):
         # Ensure positiveness of learned parameters
         P.register_parametrization(self.learnable_scaling, "weight", Exp()) 
         if self.learn_amplitudes: 
+            Ux = self.learnable_scaling(Ux)
             #apply learnable scaling to corresponding real and imaginary channels
-            Ux[:,:,:Ux.shape[-1]//2] = self.learnable_scaling(Ux[:,:,:Ux.shape[-1]//2])  
-            Ux[:,:,Ux.shape[-1]//2::] = self.learnable_scaling(Ux[:,:,Ux.shape[-1]//2::]) 
+            #Ux[:,:,:Ux.shape[-1]//2] = self.learnable_scaling(Ux[:,:,:Ux.shape[-1]//2])  
+            #Ux[:,:,Ux.shape[-1]//2::] = self.learnable_scaling(Ux[:,:,Ux.shape[-1]//2::]) 
         #Ux shape (batch, time, 2*n_filters)
-        n_filters = Ux.shape[-1]
-        mag = Ux[:,:,:n_filters//2] ** 2 + Ux[:,:,n_filters//2::] ** 2
-        return mag.permute(0,2,1)
+        #n_filters = Ux.shape[-1]
+        #mag = Ux[:,:,:n_filters//2] ** 2 + Ux[:,:,n_filters//2::] ** 2
+        #return mag.permute(0,2,1)
+        Ux = Ux.real * Ux.real + Ux.imag * Ux.imag
+        return Ux.permute(0, 2, 1)
 
 class MuReNN(Student):
     def __init__(self, spec, Q_multiplier=16):
