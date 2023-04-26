@@ -98,7 +98,7 @@ class Exp(nn.Module):
         return torch.exp(X)
 
 class Gabor1D(Student):
-    def __init__(self, spec, learn_amplitudes=False):
+    def __init__(self, spec, learn_amplitudes=True):
         super().__init__(spec)
         self.learn_amplitudes = learn_amplitudes
         self.gaborfilter = GaborConv1d(
