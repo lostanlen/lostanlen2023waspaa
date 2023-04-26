@@ -164,15 +164,15 @@ class SpectrogramDataModule(pl.LightningDataModule):
         if domain == "speech":
             self.feature = "mel"
             self.coef_dir = 'Freqz/GAM.pkl'
-            self.data_dir = 'NTVOW'
+            self.data_dir = 'audio/NTVOW'
         elif domain == "music":
             self.feature = "vqt"
             self.coef_dir = 'Freqz/VQT.pkl'
-            self.data_dir = "SOL"
+            self.data_dir = "audio/SOL"
         elif domain == "urban":
             self.feature = "third_oct_response"
             self.coef_dir = 'Freqz/THIRD.pkl'
-            self.data_dir = "SONYC-UST-dev"
+            self.data_dir = "audio/SONYC-UST-dev"
         self.ids, self.file_names = self.get_ids()
         self.seg_length = HYPERPARAMS[domain]["seg_length"]
         self.stride = HYPERPARAMS[domain]["stride"]
