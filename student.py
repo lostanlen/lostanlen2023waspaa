@@ -9,7 +9,61 @@ import torch.nn.utils.parametrize as P
 import torch.nn.functional as F
 from utils import GaborConv1d
 
-class TDFilterbank(pl.LightningModule):
+class Student(pl.LightningModule):
+    def __init__(self, spec):
+        super().__init__()
+        self.spec = spec
+        self.train_outputs = []
+        self.test_outputs = []
+        self.val_outputs = []
+        self.loss = nn.CosineSimilarity(dim=-1)
+        #self.loss = F.mse_loss
+
+    def step(self, batch, fold):
+        feat = batch['feature'].squeeze()
+        x = batch['x']
+        outputs = self(x)
+        #loss = F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) 
+        loss = -torch.mean(self.loss(outputs[:,1:,:], feat[:,1:,:]), axis=-1)
+        if fold == "train":
+            self.train_outputs.append(loss)
+        elif fold == "test":
+            self.test_outputs.append(loss)
+        elif fold == "val":
+            self.val_outputs.append(loss)
+        return {'loss': loss}
+    
+    def training_step(self, batch):
+        return self.step(batch, "train")
+    
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, "val")
+
+    def test_step(self, batch, batch_idx):
+        return self.step(batch, "test")
+    
+    def on_train_epoch_start(self):
+        self.train_outputs = []
+        self.test_outputs = []
+        self.val_outputs = []
+
+    def on_train_epoch_end(self):
+        avg_loss = torch.tensor(self.train_outputs).mean()
+        self.log('train_loss', avg_loss, prog_bar=False)
+    
+    def on_test_epoch_end(self):
+        avg_loss = torch.tensor(self.test_outputs).mean()
+        self.log('test_loss', avg_loss, prog_bar=False)
+
+    def on_validation_epoch_end(self):
+        avg_loss = torch.tensor(self.val_outputs).mean()
+        self.log('val_loss', avg_loss, prog_bar=False)
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr=1e-3)
+
+
+class TDFilterbank(Student):
     def __init__(self, spec):
         super().__init__()
 
@@ -30,11 +84,6 @@ class TDFilterbank(pl.LightningModule):
             padding=spec["win_length"]//2,
             bias=False,
         )
-        self.train_outputs = []
-        self.test_outputs = []
-        self.val_outputs = []
-        self.loss = nn.CosineSimilarity(dim=-1)
-        #self.loss = F.mse_loss
         
     def forward(self, x):
         x = x.reshape(x.shape[0], 1, x.shape[-1])
@@ -43,156 +92,12 @@ class TDFilterbank(pl.LightningModule):
         Ux = Wx_real * Wx_real + Wx_imag * Wx_imag
         return Ux
 
-    def step(self, batch, fold):
-        feat = batch['feature'].squeeze()#.to(self.device)
-        x = batch['x']#.to(self.device).double()
-        outputs = self(x)
-        #loss = F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) 
-        loss = -torch.mean(self.loss(outputs[:,1:,:].flatten(start_dim=1), 
-                                        feat[:,1:,:].flatten(start_dim=1)))
-        if fold == "train":
-            self.train_outputs.append(loss)
-        elif fold == "test":
-            self.test_outputs.append(loss)
-        elif fold == "val":
-            self.val_outputs.append(loss)
-        return {'loss': loss}
-    
-    def training_step(self, batch):
-        return self.step(batch, "train")
-    
-    def validation_step(self, batch, batch_idx):
-        return self.step(batch, "val")
 
-    def test_step(self, batch, batch_idx):
-        return self.step(batch, "test")
-    
-    def on_train_epoch_start(self):
-        self.train_outputs = []
-        self.test_outputs = []
-        self.val_outputs = []
-
-    def on_train_epoch_end(self):
-        avg_loss = torch.tensor(self.train_outputs).mean()
-        self.log('train_loss', avg_loss, prog_bar=False)
-    
-    def on_test_epoch_end(self):
-        avg_loss = torch.tensor(self.test_outputs).mean()
-        self.log('test_loss', avg_loss, prog_bar=False)
-
-    def on_validation_epoch_end(self):
-        avg_loss = torch.tensor(self.val_outputs).mean()
-        self.log('val_loss', avg_loss, prog_bar=False)
-
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=1e-3)
-       
-
-class MuReNN(pl.LightningModule):
-    def __init__(self, spec, Q_multiplier=16):
-        super().__init__()
-        octaves = spec["octaves"]
-        Q_ctr = Counter(octaves)
-        self.J_psi = max(Q_ctr)
-        self.stride = spec["stride"]
-        
-        self.tfm = DTCWTForward(J=1+self.J_psi,
-            alternate_gh=True, include_scale=False)
-
-        psis = []
-        for j in range(1+self.J_psi):
-            kernel_size = Q_multiplier*Q_ctr[j]
-            if j == 0:
-                stride_j = spec["stride"]
-            else:
-                stride_j = spec["stride"] // (2**(j-1))
-            psi = torch.nn.Conv1d(
-                in_channels=1,
-                out_channels=Q_ctr[j],
-                kernel_size=kernel_size,
-                stride=stride_j,
-                bias=False,
-                padding=kernel_size//2)
-            psis.append(psi)
-            
-        self.psis = torch.nn.ParameterList(psis)
-        self.train_outputs = []
-        self.test_outputs = []
-        self.val_outputs = []
-        self.loss = nn.CosineSimilarity(dim=-1)
-
-    def forward(self, x):
-        x = x.reshape(x.shape[0], 1, x.shape[-1])
-        _, x_levels = self.tfm.forward(x)
-        Ux = []
-        
-        for j_psi in range(1+self.J_psi):
-            x_level = x_levels[j_psi].type(torch.complex64) / (2**j_psi)
-            Wx_real = self.psis[j_psi](x_level.real)
-            Wx_imag = self.psis[j_psi](x_level.imag)
-            Ux_j = Wx_real * Wx_real + Wx_imag * Wx_imag
-            Ux_j = torch.real(Ux_j)
-            Ux.append(Ux_j)
-
-        Ux = torch.cat(Ux, axis=1)
-
-        # Flip j axis so that frequencies range from low to high
-        Ux = torch.flip(Ux, dims=(-2,))
-        return Ux
-    
-    def step(self, batch, fold):
-        feat = batch['feature'].squeeze()#.to(self.device)
-        x = batch['x']#.to(self.device).double()
-        outputs = self(x)
-        if outputs.shape[-2] + 1 == feat.shape[-2]:
-            loss = -torch.mean(self.loss(outputs.flatten(start_dim=1), 
-                                        feat[:,1:,:].flatten(start_dim=1)))#F.mse_loss(outputs, feat[:,1:,:]) 
-        else:
-            loss = -torch.mean(self.loss(outputs[:,1:,:].flatten(start_dim=1), 
-                                        feat[:,1:,:].flatten(start_dim=1)))#F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) 
-        
-        if fold == "train":
-            self.train_outputs.append(loss)
-        elif fold == "test":
-            self.test_outputs.append(loss)
-        elif fold == "val":
-            self.val_outputs.append(loss)
-        return {'loss': loss}
-    
-    def training_step(self, batch):
-        return self.step(batch, "train")
-    
-    def validation_step(self, batch, batch_idx):
-        return self.step(batch, "val")
-
-    def test_step(self, batch, batch_idx):
-        return self.step(batch, "test")
-
-    def on_train_epoch_start(self):
-        self.train_outputs = []
-        self.test_outputs = []
-        self.val_outputs = []
-
-    def on_train_epoch_end(self):
-        avg_loss = torch.tensor(self.train_outputs).mean()
-        self.log('train_loss', avg_loss, prog_bar=False)
-    
-    def on_test_epoch_end(self):
-        avg_loss = torch.tensor(self.test_outputs).mean()
-        self.log('test_loss', avg_loss, prog_bar=False)
-
-    def on_validation_epoch_end(self):
-        avg_loss = torch.tensor(self.val_outputs).mean()
-        self.log('val_loss', avg_loss, prog_bar=False)
-
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=1e-3)
-       
 class Exp(nn.Module):
     def forward(self, X):
         return torch.exp(X)
 
-class Gabor1D(pl.LightningModule):
+class Gabor1D(Student):
     def __init__(self, spec, learn_amplitudes=False):
         super().__init__()
         self.learn_amplitudes = learn_amplitudes
@@ -221,11 +126,6 @@ class Gabor1D(pl.LightningModule):
             groups=spec['n_filters'],
             bias=False
         )
-        
-        self.train_outputs = []
-        self.test_outputs = []
-        self.val_outputs = []
-        self.loss = nn.CosineSimilarity(dim=-1)
 
     def forward(self, x): 
         Ux = self.gaborfilter(x) #(batch, time, filters)
@@ -240,14 +140,63 @@ class Gabor1D(pl.LightningModule):
         mag = Ux[:,:,:n_filters//2] ** 2 + Ux[:,:,n_filters//2::] ** 2
         return mag.permute(0,2,1)
 
-    def step(self, batch, fold):
-        feat = batch['feature']#.to(self.device)
-        x = batch['x']#.to(self.device).double()
-        outputs = self(x)
-        #loss = F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) #remove the low pass filter from loss
-        loss = -torch.mean(self.loss(outputs[:,1:,:].flatten(start_dim=1), 
-                                        feat[:,1:,:].flatten(start_dim=1)))
+class MuReNN(Student):
+    def __init__(self, spec, Q_multiplier=16):
+        super().__init__()
+        octaves = spec["octaves"]
+        Q_ctr = Counter(octaves)
+        self.J_psi = max(Q_ctr)
+        self.stride = spec["stride"]
+        
+        self.tfm = DTCWTForward(J=1+self.J_psi,
+            alternate_gh=True, include_scale=False)
 
+        psis = []
+        for j in range(1+self.J_psi):
+            kernel_size = Q_multiplier*Q_ctr[j]
+            if j == 0:
+                stride_j = spec["stride"]
+            else:
+                stride_j = spec["stride"] // (2**(j-1))
+            psi = torch.nn.Conv1d(
+                in_channels=1,
+                out_channels=Q_ctr[j],
+                kernel_size=kernel_size,
+                stride=stride_j,
+                bias=False,
+                padding=kernel_size//2)
+            psis.append(psi)
+            
+        self.psis = torch.nn.ParameterList(psis)
+
+    def forward(self, x):
+        x = x.reshape(x.shape[0], 1, x.shape[-1])
+        _, x_levels = self.tfm.forward(x)
+        Ux = []
+        
+        for j_psi in range(1+self.J_psi):
+            x_level = x_levels[j_psi].type(torch.complex64) / (2**j_psi)
+            Wx_real = self.psis[j_psi](x_level.real)
+            Wx_imag = self.psis[j_psi](x_level.imag)
+            Ux_j = Wx_real * Wx_real + Wx_imag * Wx_imag
+            Ux_j = torch.real(Ux_j)
+            Ux.append(Ux_j)
+
+        Ux = torch.cat(Ux, axis=1)
+
+        # Flip j axis so that frequencies range from low to high
+        Ux = torch.flip(Ux, dims=(-2,))
+        return Ux
+    
+    def step(self, batch, fold):
+        feat = batch['feature'].squeeze()
+        x = batch['x']
+        outputs = self(x)
+        if outputs.shape[-2] + 1 == feat.shape[-2]:
+            loss = -torch.mean(self.loss(outputs, feat[:,1:,:]), axis=-1)
+        else:
+            loss = -torch.mean(self.loss(outputs[:,1:,:], feat[:,1:,:]), axis=-1)
+        
         if fold == "train":
             self.train_outputs.append(loss)
         elif fold == "test":
@@ -255,33 +204,3 @@ class Gabor1D(pl.LightningModule):
         elif fold == "val":
             self.val_outputs.append(loss)
         return {'loss': loss}
-    
-    def training_step(self, batch):
-        return self.step(batch, "train")
-    
-    def validation_step(self, batch, batch_idx):
-        return self.step(batch, "val")
-
-    def test_step(self, batch, batch_idx):
-        return self.step(batch, "test")
-        
-    def on_train_epoch_start(self):
-        self.train_outputs = []
-        self.test_outputs = []
-        self.val_outputs = []
-
-    def on_train_epoch_end(self):
-        avg_loss = torch.tensor(self.train_outputs).mean()
-        self.log('train_loss', avg_loss, prog_bar=False)
-    
-    def on_test_epoch_end(self):
-        avg_loss = torch.tensor(self.test_outputs).mean()
-        self.log('test_loss', avg_loss, prog_bar=False)
-
-    def on_validation_epoch_end(self):
-        avg_loss = torch.tensor(self.val_outputs).mean()
-        self.log('val_loss', avg_loss, prog_bar=False)
-
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=1e-3)
-       
