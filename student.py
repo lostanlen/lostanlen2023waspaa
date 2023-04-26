@@ -109,7 +109,7 @@ class MuReNN(pl.LightningModule):
             Wx_real = self.psis[j_psi](x_level.real)
             Wx_imag = self.psis[j_psi](x_level.imag)
             Ux_j = Wx_real * Wx_real + Wx_imag * Wx_imag
-            Ux_j = torch.real(Ux_j) 
+            Ux_j = torch.real(Ux_j)
             Ux.append(Ux_j)
 
         Ux = torch.cat(Ux, axis=1)
@@ -122,7 +122,10 @@ class MuReNN(pl.LightningModule):
         feat = batch['feature'].squeeze()#.to(self.device)
         x = batch['x']#.to(self.device).double()
         outputs = self(x)
-        loss = F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) 
+        if outputs.shape[-2] + 1 == feat.shape[-2]:
+            loss = F.mse_loss(outputs, feat[:,1:,:]) 
+        else:
+            loss = F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) 
         return {'loss': loss}
     
     def training_step(self, batch):

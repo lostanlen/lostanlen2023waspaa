@@ -35,7 +35,7 @@ HYPERPARAMS = {
         "sr": 16000, 
         "fmin": 12.5, 
         "fmax": 8000,
-        "octaves": GAM["octave_tags"],
+        "octaves": GAM["octave_tags"][0],
     },
     "music": { #vqt
         "n_filters": 96,
@@ -46,7 +46,7 @@ HYPERPARAMS = {
         "sr": 44100,
         "fmin": 100,
         "fmax": 22050,
-        "octaves": VQT["octave_tags"],
+        "octaves": VQT["octave_tags"][0],
     }, 
     "urban": {  #third
         "n_filters": 32,
@@ -57,7 +57,7 @@ HYPERPARAMS = {
         "sr": 44100,
         "fmin": 25,
         "fmax": 20000,
-        "octaves": THIRD["octave_tags"],
+        "octaves": THIRD["octave_tags"][0],
     },
     "synth": {
         "bins_per_octave": 1,
