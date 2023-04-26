@@ -30,6 +30,9 @@ class TDFilterbank(pl.LightningModule):
             padding=spec["win_length"]//2,
             bias=False,
         )
+        self.train_outputs = []
+        self.test_outputs = []
+        self.val_outputs = []
 
     def forward(self, x):
         x = x.reshape(x.shape[0], 1, x.shape[-1])
@@ -43,6 +46,12 @@ class TDFilterbank(pl.LightningModule):
         x = batch['x']#.to(self.device).double()
         outputs = self(x)
         loss = F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) 
+        if fold == "train":
+            self.train_outputs.append(loss)
+        elif fold == "test":
+            self.test_outputs.append(loss)
+        elif fold == "val":
+            self.val_outputs.append(loss)
         return {'loss': loss}
     
     def training_step(self, batch):
@@ -53,17 +62,22 @@ class TDFilterbank(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         return self.step(batch, "test")
-
-    def on_train_epoch_end(self, outputs):
-        loss = torch.stack([x['loss'] for x in outputs]).mean()
-        self.log('train_loss', loss, prog_bar=False)
     
-    def on_test_epoch_end(self, outputs):
-        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+    def on_train_epoch_start(self):
+        self.train_outputs = []
+        self.test_outputs = []
+        self.val_outputs = []
+
+    def on_train_epoch_end(self):
+        avg_loss = torch.tensor(self.train_outputs).mean()
+        self.log('train_loss', avg_loss, prog_bar=False)
+    
+    def on_test_epoch_end(self):
+        avg_loss = torch.tensor(self.test_outputs).mean()
         self.log('test_loss', avg_loss, prog_bar=False)
 
-    def on_validation_epoch_end(self, outputs):
-        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+    def on_validation_epoch_end(self):
+        avg_loss = torch.tensor(self.val_outputs).mean()
         self.log('val_loss', avg_loss, prog_bar=False)
 
     def configure_optimizers(self):
@@ -98,6 +112,9 @@ class MuReNN(pl.LightningModule):
             psis.append(psi)
             
         self.psis = torch.nn.ParameterList(psis)
+        self.train_outputs = []
+        self.test_outputs = []
+        self.val_outputs = []
                   
     def forward(self, x):
         x = x.reshape(x.shape[0], 1, x.shape[-1])
@@ -126,6 +143,13 @@ class MuReNN(pl.LightningModule):
             loss = F.mse_loss(outputs, feat[:,1:,:]) 
         else:
             loss = F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) 
+        
+        if fold == "train":
+            self.train_outputs.append(loss)
+        elif fold == "test":
+            self.test_outputs.append(loss)
+        elif fold == "val":
+            self.val_outputs.append(loss)
         return {'loss': loss}
     
     def training_step(self, batch):
@@ -137,16 +161,21 @@ class MuReNN(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         return self.step(batch, "test")
 
-    def on_train_epoch_end(self, outputs):
-        loss = torch.stack([x['loss'] for x in outputs]).mean()
-        self.log('train_loss', loss, prog_bar=False)
+    def on_train_epoch_start(self):
+        self.train_outputs = []
+        self.test_outputs = []
+        self.val_outputs = []
+
+    def on_train_epoch_end(self):
+        avg_loss = torch.tensor(self.train_outputs).mean()
+        self.log('train_loss', avg_loss, prog_bar=False)
     
-    def on_test_epoch_end(self, outputs):
-        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+    def on_test_epoch_end(self):
+        avg_loss = torch.tensor(self.test_outputs).mean()
         self.log('test_loss', avg_loss, prog_bar=False)
 
-    def on_validation_epoch_end(self, outputs):
-        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+    def on_validation_epoch_end(self):
+        avg_loss = torch.tensor(self.val_outputs).mean()
         self.log('val_loss', avg_loss, prog_bar=False)
 
     def configure_optimizers(self):
@@ -185,12 +214,15 @@ class Leaf(pl.LightningModule):
             groups=spec['n_filters'],
             bias=False
         )
-        # Ensure positiveness of learned parameters
-        #P.register_parametrization(self.learnable_scaling, "weight", Exp()) 
+        
+        self.train_outputs = []
+        self.test_outputs = []
+        self.val_outputs = []
 
     def forward(self, x): 
         Ux = self.gaborfilter(x) #(batch, time, filters)
-        #print("gabor what shape", Ux.shape, Ux.dtype, torch.sum(Ux<0))
+        # Ensure positiveness of learned parameters
+        P.register_parametrization(self.learnable_scaling, "weight", Exp()) 
         if self.learn_amplitudes: 
             #apply learnable scaling to corresponding real and imaginary channels
             Ux[:,:,:Ux.shape[-1]//2] = self.learnable_scaling(Ux[:,:,:Ux.shape[-1]//2])  
@@ -205,6 +237,13 @@ class Leaf(pl.LightningModule):
         x = batch['x']#.to(self.device).double()
         outputs = self(x)
         loss = F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) #remove the low pass filter from loss
+        
+        if fold == "train":
+            self.train_outputs.append(loss)
+        elif fold == "test":
+            self.test_outputs.append(loss)
+        elif fold == "val":
+            self.val_outputs.append(loss)
         return {'loss': loss}
     
     def training_step(self, batch):
@@ -215,17 +254,22 @@ class Leaf(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         return self.step(batch, "test")
-
-    def on_train_epoch_end(self, outputs):
-        loss = torch.stack([x['loss'] for x in outputs]).mean()
-        self.log('train_loss', loss, prog_bar=False)
-    
-    def on_test_epoch_end(self, outputs):
-        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
-        self.log('test_loss', avg_loss, prog_bar=False)
         
-    def on_validation_epoch_end(self, outputs):
-        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+    def on_train_epoch_start(self):
+        self.train_outputs = []
+        self.test_outputs = []
+        self.val_outputs = []
+
+    def on_train_epoch_end(self):
+        avg_loss = torch.tensor(self.train_outputs).mean()
+        self.log('train_loss', avg_loss, prog_bar=False)
+    
+    def on_test_epoch_end(self):
+        avg_loss = torch.tensor(self.test_outputs).mean()
+        self.log('test_loss', avg_loss, prog_bar=False)
+
+    def on_validation_epoch_end(self):
+        avg_loss = torch.tensor(self.val_outputs).mean()
         self.log('val_loss', avg_loss, prog_bar=False)
 
     def configure_optimizers(self):

@@ -2,7 +2,6 @@ from nnAudio.features.cqt import CQT
 import numpy as np
 import pytorch_lightning as pl
 from torch.utils.data import Dataset, DataLoader
-import h5py
 import numpy as np
 import torch
 import os

@@ -79,6 +79,7 @@ def run(sav_dir, domain, arch, init_id, batch_size, job_id):
     # Setup trainer
     steps_per_epoch = SAMPLES_PER_EPOCH // batch_size
     max_steps = steps_per_epoch * MAX_EPOCHS
+    strategy=pl.strategies.DDPStrategy(find_unused_parameters=True)
     trainer = pl.Trainer(
         accelerator=accelerator,
         devices=devices,
@@ -90,7 +91,8 @@ def run(sav_dir, domain, arch, init_id, batch_size, job_id):
         callbacks=[checkpoint_cb],
         logger=tb_logger,
         max_time=timedelta(hours=12),
-    )
+        strategy=strategy
+    )    
 
     # Train
     trainer.fit(model, dataset)
