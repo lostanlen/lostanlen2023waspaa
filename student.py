@@ -24,7 +24,7 @@ class Student(pl.LightningModule):
         x = batch['x']
         outputs = self(x)
         #loss = F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) 
-        loss = -torch.mean(self.loss(outputs[:,1:,:], feat[:,1:,:]), axis=-1)
+        loss = -self.loss(outputs[:,1:,:], feat[:,1:,:]).mean()
         if fold == "train":
             self.train_outputs.append(loss)
         elif fold == "test":
