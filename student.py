@@ -4,10 +4,10 @@ import numpy as np
 import torch
 import torchaudio
 import torch.nn as nn
-from speechbrain.nnet.CNN import GaborConv1d
 import pytorch_lightning as pl
 import torch.nn.utils.parametrize as P
 import torch.nn.functional as F
+from utils import GaborConv1d
 
 class TDFilterbank(pl.LightningModule):
     def __init__(self, spec):
