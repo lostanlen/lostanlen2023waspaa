@@ -193,9 +193,9 @@ class MuReNN(Student):
         x = batch['x']
         outputs = self(x)
         if outputs.shape[-2] + 1 == feat.shape[-2]:
-            loss = -torch.mean(self.loss(outputs, feat[:,1:,:]), axis=-1)
+            loss = -self.loss(outputs, feat[:,1:,:]).mean()
         else:
-            loss = -torch.mean(self.loss(outputs[:,1:,:], feat[:,1:,:]), axis=-1)
+            loss = -self.loss(outputs[:,1:,:], feat[:,1:,:]).mean()
         
         if fold == "train":
             self.train_outputs.append(loss)
