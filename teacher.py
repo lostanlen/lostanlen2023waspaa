@@ -253,6 +253,7 @@ class SpectrogramData(Dataset):
     def feat_from_id(self, id):
         x, sr = sf.read(self.file_names[int(id)])
         #sample a random segment 
+        print(x.shape, self.seg_length, id)
         start = np.random.randint(x.shape[0] - self.seg_length - 1)
         x = torch.tensor(x[start: start+self.seg_length], dtype=torch.float32)#.to(device)
         feat = filtering_time(x, self.freqz, self.stride)
