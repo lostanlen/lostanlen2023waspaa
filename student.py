@@ -102,7 +102,7 @@ class Gabor1D(Student):
         super().__init__(spec)
         self.learn_amplitudes = learn_amplitudes
         self.gaborfilter = GaborConv1d(
-            out_channels=spec['n_filters']+1, 
+            out_channels=spec['n_filters'], 
             kernel_size=spec['win_length'],
             stride=spec['stride'],
             input_shape=None,
