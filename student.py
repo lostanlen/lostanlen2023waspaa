@@ -128,7 +128,7 @@ class Gabor1D(Student):
         )
 
     def forward(self, x): 
-        Yx = self.gaborfilter(x)[:self.spec["n_filters"]] # (batch, time, filters)
+        Yx = self.gaborfilter(x) # (batch, time, filters)
         Yx = Yx.permute(0, 2, 1) # (batch, filters, time)
         # Ensure positiveness of learned parameters
         P.register_parametrization(self.learnable_scaling, "weight", Exp()) 
