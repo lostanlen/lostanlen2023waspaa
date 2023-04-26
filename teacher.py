@@ -60,8 +60,8 @@ HYPERPARAMS = {
         "octaves": THIRD["octave_tags"][0],
     },
     "synth": {
-        "bins_per_octave": 1,
-        "n_filters": 8,
+        "bins_per_octave": 8,
+        "n_filters": 64,
         "win_length": 2**10,
         "stride": 2**8,
         "sr": 44100,
@@ -69,7 +69,7 @@ HYPERPARAMS = {
         "fmax": 22050,
         "seg_length": 2**14,
         "n_samples": 1000,
-        "octaves": reversed(range(8)),
+        "octaves": [[i]*8 for i in range(8)],
     },
 }
 
