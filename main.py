@@ -119,5 +119,5 @@ def run(sav_dir, domain, arch, init_id, batch_size, job_id):
 if __name__ == "__main__":
     #save_dir = "/home/han/localdata/data/waspaa_data/SOL"
     #domain = "speech"
-    #arch, init_id, batch_size, job_id = "Leaf", 0, 2, 1
+    #arch, init_id, batch_size, job_id = "Gabor1D", 0, 2, 1
     fire.Fire(run)
