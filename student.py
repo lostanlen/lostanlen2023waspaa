@@ -131,8 +131,8 @@ class Gabor1D(Student):
         Yx = self.gaborfilter(x) # (batch, time, 2*filters)
         
         # Squared modulus
-        Yx_real = Ux[:,:,:Ux.shape[-1]//2]
-        Yx_imag = Ux[:,:,Ux.shape[-1]//2:]
+        Yx_real = Yx[:,:,:Yx.shape[-1]//2]
+        Yx_imag = Yx[:,:,Yx.shape[-1]//2:]
         Ux = Yx_real*Yx_real + Yx_imag*Yx_imag
 
         # Ensure positiveness of learned parameters
