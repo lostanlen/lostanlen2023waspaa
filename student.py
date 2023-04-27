@@ -126,6 +126,7 @@ class Gabor1D(Student):
             groups=spec['n_filters'],
             bias=False
         )
+        nn.init.constant_(self.learnable_scaling, val=0)
 
     def forward(self, x): 
         Yx = self.gaborfilter(x) # (batch, time, 2*filters)
@@ -137,7 +138,8 @@ class Gabor1D(Student):
         Ux = Ux.permute(0, 2, 1) # (batch, filters, time)
 
         # Ensure positiveness of learned parameters
-        P.register_parametrization(self.learnable_scaling, "weight", Exp()) 
+        P.register_parametrization(
+            self.learnable_scaling, "weight", nn.Softmax(dim=1))
         if self.learn_amplitudes: 
             Ux = self.learnable_scaling(Ux)  
         
