@@ -126,7 +126,9 @@ class Gabor1D(Student):
             groups=spec['n_filters'],
             bias=False
         )
-        nn.init.constant_(self.learnable_scaling, val=0)
+        nn.init.constant_(
+            self.learnable_scaling.weight, val=0.0
+        )
 
     def forward(self, x): 
         Yx = self.gaborfilter(x) # (batch, time, 2*filters)
