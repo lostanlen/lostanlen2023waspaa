@@ -69,7 +69,7 @@ HYPERPARAMS = {
         "fmax": 22050,
         "seg_length": 2**14,
         "n_samples": 1000,
-        "octaves": [[i]*8 for i in range(8)],
+        "octaves": [i for i in range(8) for j in range(8)],
     },
 }
 

@@ -18,7 +18,7 @@ import torch
 import student
 import teacher
 
-MAX_EPOCHS = 1000
+MAX_EPOCHS = 100
 SAMPLES_PER_EPOCH = 8000
 
 def run(sav_dir, domain, arch, init_id, batch_size, job_id):
