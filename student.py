@@ -134,13 +134,13 @@ class Gabor1D(Student):
         Yx_real = Yx[:,:,:Yx.shape[-1]//2]
         Yx_imag = Yx[:,:,Yx.shape[-1]//2:]
         Ux = Yx_real*Yx_real + Yx_imag*Yx_imag
+        Ux = Ux.permute(0, 2, 1) # (batch, filters, time)
 
         # Ensure positiveness of learned parameters
         P.register_parametrization(self.learnable_scaling, "weight", Exp()) 
         if self.learn_amplitudes: 
             Ux = self.learnable_scaling(Ux)  
-            
-        Ux = Ux.permute(0, 2, 1) # (batch, filters, time)
+        
         return Ux
     
 
