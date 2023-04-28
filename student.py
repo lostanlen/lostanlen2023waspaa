@@ -24,7 +24,7 @@ class Student(pl.LightningModule):
         x = batch['x']
         outputs = self(x)
         #loss = F.mse_loss(outputs[:,1:,:], feat[:,1:,:]) 
-        loss = -self.loss(outputs[:,1:,:], feat[:,1:,:]).mean()
+        loss = 0.5 * (1-self.loss(outputs[:,1:,:], feat[:,1:,:]).mean())
         if fold == "train":
             self.train_outputs.append(loss)
         elif fold == "test":
@@ -205,9 +205,9 @@ class MuReNN(Student):
         x = batch['x']
         outputs = self(x)
         if outputs.shape[-2] + 1 == feat.shape[-2]:
-            loss = -self.loss(outputs, feat[:,1:,:]).mean()
+            loss = 0.5 * (1-self.loss(outputs, feat[:,1:,:]).mean())
         else:
-            loss = -self.loss(outputs[:,1:,:], feat[:,1:,:]).mean()
+            loss = 0.5 * (1-self.loss(outputs[:,1:,:], feat[:,1:,:]).mean())
         
         if fold == "train":
             self.train_outputs.append(loss)
