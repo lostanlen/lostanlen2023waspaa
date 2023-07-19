@@ -1,2 +1,2 @@
-# waspaa2023_filterbanks
- Optimizing auditory filterbanks by gradient descent
+# Fitting Auditory Filterbanks with Multiresolution Neural Networks
+
